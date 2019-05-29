@@ -34,6 +34,74 @@ static const SFixedArray<const char*, MAX_CHATBOX_LAYOUT_CVARS> g_chatboxLayoutC
     "text_scale"
 }};
 
+static const SFixedArray<const char*, MAX_CLIENT_SETTINGS> g_clientSettings = {{
+	"mastervolume",
+	"mtavolume",
+	"voicevolume",
+	"mute_master_when_minimized",
+	"mute_radio_when_minimized",
+	"mute_sfx_when_minimized",
+	"mute_mta_when_minimized",
+	"mute_voice_when_minimized",
+	"fov",
+	//"anisotropic",
+	"aspect_ratio",
+	//"hud_match_aspect_ratio",
+	"volumetric_shadows",
+	//"show_unsafe_resolutions",
+	"allow_screen_upload",
+	"grass",
+	"heat_haze",
+	"tyre_smoke_enabled",
+	"high_detail_vehicles",
+	"high_detail_peds",
+	"streaming_memory",
+	"mapalpha",
+	//"invert_mouse",
+	//"fly_with_mouse",
+	//"steer_with_mouse",
+	//"classic_controls",
+	"vertical_aim_sensitivity",
+	//"nick",
+	//"save_server_passwords",
+	//"auto_refresh_browser",
+	"locale",
+	//"current_skin",
+	//"process_priority",
+	"fast_clothes_loading",
+	//"browser_speed",
+	//"single_download",
+	//"packet_tag",
+	//"progress_animation",
+	//"update_auto_install",
+	"chat_font",
+	"chat_lines",
+	"chat_scale",
+	"chat_width",
+	"chat_css_style_text",
+	"chat_css_style_background",
+	//"chat_text_outline",
+	"chat_line_line",
+	"chat_line_fade_out",
+	"chat_position_horizontal",
+	"chat_position_vertical",
+	"chat_text_alignment",
+	"chat_position_offset_x",
+	"chat_position_offset_y",
+	"text_scale",
+	"chat_color",
+	"chat_text_color",
+	"chat_input_color",
+	"chat_input_text_color",
+	"chat_input_prefix_color",
+	"chat_use_cegui",
+	//"server_can_flash_window",
+	"allow_tray_notifications",
+	"browser_remote_websites",
+	"browser_remote_javascript",
+
+}};
+
 void CLuaGUIDefs::LoadFunctions()
 {
     std::map<const char*, lua_CFunction> functions{
@@ -181,6 +249,7 @@ void CLuaGUIDefs::LoadFunctions()
         {"guiWindowIsSizable", GUIWindowIsSizable},
 
         {"getChatboxLayout", GUIGetChatboxLayout},
+        {"getClientSettings", GUIGetSettings},
 
         {"guiComboBoxAddItem", GUIComboBoxAddItem},
         {"guiComboBoxRemoveItem", GUIComboBoxRemoveItem},
@@ -3743,6 +3812,148 @@ int CLuaGUIDefs::GUIGetChatboxLayout(lua_State* luaVM)
     // error: bad arguments
     lua_pushboolean(luaVM, false);
     return 1;
+}
+
+int CLuaGUIDefs::GUIGetSettings(lua_State* luaVM)
+{
+	CScriptArgReader argStream(luaVM);
+	CCVarsInterface* pCVars = g_pCore->GetCVars();
+	float    		 fNumber;
+	bool 			 bBool;
+	SString    		 strCVarValue;
+	std::stringstream ss;
+	int 			  iR, iG, iB, iA;
+	SString 		  strCVarArg;
+	bool 			  bAll = argStream.NextIsNone();
+
+	// If we are asking for all CVars, prepare a new table
+	if (bAll)
+		lua_newtable(luaVM);
+	else
+		argStream.ReadString(strCVarValue);
+
+	if (!argStream.HasErrors())
+	{
+		// Loop through all CVars
+		for (unsigned int i = 0; i < MAX_CLIENT_SETTINGS; i++)
+		{
+			// If we are asking for all CVars, or we can match the requested CVar with this CVar
+			if (bAll || !stricmp(g_clientSettings[i], strCVarArg))
+			{
+				// Push color values into a table
+				if (g_clientSettings[i] == "chat_color" ||
+				   g_clientSettings[i] == "chat_text_color" ||
+				   g_clientSettings[i] == "chat_input_color" ||
+				   g_clientSettings[i] == "chat_input_prefix_color" ||
+				   g_clientSettings[i] == "chat_input_text_color")
+				{
+					pCVars->Get(g_clientSettings[i], strCVarValue);
+					if (!strCVarValue.empty())
+					{
+						ss.clear();
+						ss.str(strCVarValue);
+						ss >> iR >> iG >> iB >> iA;
+						lua_newtable(luaVM);
+						lua_pushnumber(luaVM, 1);
+						lua_pushnumber(luaVM, iR);
+						lua_settable(luaVM, -3);
+						lua_pushnumber(luaVM, 2);
+						lua_pushnumber(luaVM, iG);
+						lua_settable(luaVM, -3);
+						lua_pushnumber(luaVM, 3);
+						lua_pushnumber(luaVM, iB);
+						lua_settable(luaVM, -3);
+						lua_pushnumber(luaVM, 4);
+						lua_pushnumber(luaVM, iA)
+						lua_settable(luaVM, -3);
+					}
+				}
+				// Push settings into a table
+				else if (g_clientSettings[i] == "chat_scale" || 
+					    g_clientSettings[i] == "text_scale" ||
+					    g_clientSettings[i] == "mastervolume" ||
+					    g_clientSettings[i] == "mtavolume" ||
+					    g_clientSettings[i] == "voicevolume" ||
+					    g_clientSettings[i] == "fov" ||
+					    g_clientSettings[i] == "aspect_ratio" ||
+					    g_clientSettings[i] == "mapalpha" ||
+					    g_clientSettings[i] == "vertical_aim_sensitivity" ||
+					    g_clientSettings[i] == "streaming_memory")
+				{
+					pCVars->Get(g_clientSettings[i], strCVarValue);
+					if (!strCVarValue.empty())
+					{
+						float fX, fY;
+						ss.clear();
+						ss.str(strCVarValue);
+						ss >> fX >> fY;
+						lua_newtable(luaVM);
+						lua_pushnumber(luaVM, 1);
+						lua_pushnumber(luaVM, fX);
+						lua_settable(luaVM, -3);
+						lua_pushnumber(luaVM, 2);
+						lua_pushnumber(luaVM, fY);
+						lua_settable(luaVM, -3);
+					}
+				}
+				else
+				{
+					if (g_clientSettings[i] == "chat_use_cegui")
+					{
+						pCVars->Get(g_clientSettings[i], fNumber);
+						lua_pushboolean(luaVM, fNumber ? true : false);
+					}
+					else if (g_clientSettings[i] == "mute_master_when_minimized" ||
+							 g_clientSettings[i] == "mute_radio_when_minimized" ||
+							 g_clientSettings[i] == "mute_sfx_when_minimized" ||
+							 g_clientSettings[i] == "mute_mta_when_minimized" ||
+							 g_clientSettings[i] == "mute_voice_when_minimized" ||
+							 g_clientSettings[i] == "volumetric_shadows" ||
+							 g_clientSettings[i] == "allow_screen_upload" ||
+							 g_clientSettings[i] == "tyre_smoke_enabled" ||
+							 g_clientSettings[i] == "high_detail_peds" ||
+							 g_clientSettings[i] == "high_detail_vehicles" ||
+							 g_clientSettings[i] == "fast_clothes_loading" ||
+							 g_clientSettings[i] == "allow_tray_notifications" ||
+							 g_clientSettings[i] == "browser_remote_websites" ||
+							 g_clientSettings[i] == "browser_remote_javascript" || g_clientSettings[i] == "locale")
+					{
+
+							if (g_clientSettings[i] != "locale")
+							{
+								pCVars->Get(g_clientSettings[i], bBool);
+								lua_pushboolean(luaVM, bBool);
+							}
+							else
+							{
+								SString locale;
+								pCVars->Get(g_clientSettings[i], locale);
+								lua_pushstring(luaVM, locale);
+							}
+					}
+					else
+					{
+						lua_pushnumber(luaVM, fNumber);
+					}
+				}
+
+				// If we are asking for all CVars, push this into the table with its CVar name, otherwise just stop here
+				if (bAll)
+					lua_setfield(luaVM, -2, g_clientSettings[i]);
+				else
+					return 1;
+			}
+		}
+
+		if (bAll)
+				return 1;
+	}
+	else
+		m_pScriptDebugging->LogCustom(luaVM, argStream->GetFullErrorMessage());
+
+	// error: bad arguments
+	lua_pushboolean(luaVM, false);
+	return 1;
 }
 
 int CLuaGUIDefs::GUICreateComboBox(lua_State* luaVM)

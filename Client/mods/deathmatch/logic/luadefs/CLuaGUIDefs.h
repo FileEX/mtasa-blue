@@ -13,6 +13,7 @@
 #include "CLuaDefs.h"
 
 #define MAX_CHATBOX_LAYOUT_CVARS 20
+#define MAX_CLIENT_SETTINGS 45
 
 class CLuaGUIDefs : public CLuaDefs
 {
@@ -158,6 +159,7 @@ public:
     LUA_DECLARE(GUIComboBoxSetOpen);
     LUA_DECLARE(GUIComboBoxIsOpen);
     LUA_DECLARE(GUIGetCursorType);
+    LUA_DECLARE(GUIGetSettings);
 
 private:
     static void AddGuiElementClass(lua_State* luaVM);
