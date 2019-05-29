@@ -3868,17 +3868,9 @@ int CLuaGUIDefs::GUIGetSettings(lua_State* luaVM)
 						lua_settable(luaVM, -3);
 					}
 				}
-				// Push settings into a table
+				// Push scale settings into a table
 				else if (g_clientSettings[i] == "chat_scale" || 
-					    g_clientSettings[i] == "text_scale" ||
-					    g_clientSettings[i] == "mastervolume" ||
-					    g_clientSettings[i] == "mtavolume" ||
-					    g_clientSettings[i] == "voicevolume" ||
-					    g_clientSettings[i] == "fov" ||
-					    g_clientSettings[i] == "aspect_ratio" ||
-					    g_clientSettings[i] == "mapalpha" ||
-					    g_clientSettings[i] == "vertical_aim_sensitivity" ||
-					    g_clientSettings[i] == "streaming_memory")
+					    g_clientSettings[i] == "text_scale" ||)
 				{
 					pCVars->Get(g_clientSettings[i], strCVarValue);
 					if (!strCVarValue.empty())
@@ -3896,6 +3888,29 @@ int CLuaGUIDefs::GUIGetSettings(lua_State* luaVM)
 						lua_settable(luaVM, -3);
 					}
 				}
+				// Push mta settings into a table...
+				else if (g_clientSettings[i] == "mastervolume" ||
+					    g_clientSettings[i] == "mtavolume" ||
+					    g_clientSettings[i] == "voicevolume" ||
+					    g_clientSettings[i] == "fov" ||
+					    g_clientSettings[i] == "aspect_ratio" ||
+					    g_clientSettings[i] == "mapalpha" ||
+					    g_clientSettings[i] == "vertical_aim_sensitivity" ||
+					    g_clientSettings[i] == "streaming_memory")
+				{
+					pCVars->Get(g_clientSettings[i], strCVarValue);
+					if (!strCVarValue.empty())
+					{
+						float value;
+						ss.clear();
+						ss.str(strCVarValue);
+						ss >> value;
+						lua_newtable(luaVM);
+						lua_pushnumber(luaVM, 1);
+						lua_pushnumber(luaVM, value);
+						lua_settable(luaVM, -3);
+					}
+				}
 				else
 				{
 					if (g_clientSettings[i] == "chat_use_cegui")
@@ -3903,6 +3918,7 @@ int CLuaGUIDefs::GUIGetSettings(lua_State* luaVM)
 						pCVars->Get(g_clientSettings[i], fNumber);
 						lua_pushboolean(luaVM, fNumber ? true : false);
 					}
+					// Push mta booleans and locale settings into table
 					else if (g_clientSettings[i] == "mute_master_when_minimized" ||
 							 g_clientSettings[i] == "mute_radio_when_minimized" ||
 							 g_clientSettings[i] == "mute_sfx_when_minimized" ||
