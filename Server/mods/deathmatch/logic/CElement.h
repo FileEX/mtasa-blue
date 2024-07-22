@@ -40,6 +40,7 @@
 #define IS_TEAM(element)     ((element)->GetType()==CElement::TEAM)
 #define IS_WATER(element)    ((element)->GetType()==CElement::WATER)
 #define IS_WEAPON(element)    ((element)->GetType()==CElement::WEAPON)
+#define IS_PROJECTILE(element)  ((element)->GetType()==CElement::PROJECTILE)
 
 class CLuaMain;
 
@@ -81,6 +82,7 @@ public:
         DATABASE_CONNECTION,
         TRAIN_TRACK,
         ROOT,
+        PROJECTILE,
         UNKNOWN,
     };
 
