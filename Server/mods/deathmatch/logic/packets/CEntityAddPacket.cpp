@@ -1162,7 +1162,8 @@ bool CEntityAddPacket::Write(NetBitStreamInterface& BitStream) const
                         force.data.fValue = pProjectile->GetForce();
                         BitStream.Write(&force);
 
-                        BitStream.WriteCompressed(pProjectile->GetCounter());
+                        std::uint32_t currentCounter = (pProjectile->m_CreationTime + pProjectile->GetCounter()) - GetTickCount64_();
+                        BitStream.WriteCompressed(currentCounter);
                     }
                 }
 
