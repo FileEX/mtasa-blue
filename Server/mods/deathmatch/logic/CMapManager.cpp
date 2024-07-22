@@ -15,6 +15,7 @@
 #include "CWaterManager.h"
 #include "CPlayerManager.h"
 #include "CMarkerManager.h"
+#include "CProjectileManager.h"
 #include "CWater.h"
 #include "CMarker.h"
 #include "CBlip.h"
@@ -279,6 +280,13 @@ void CMapManager::SendMapInformation(CPlayer& Player)
     }
 
     marker.Set("Water");
+
+    // Add projectiles to the packet
+    CProjectileManager* pProjectileManager = g_pGame->GetProjectileManager();
+    for (auto iterProjectiles = pProjectileManager->IterBegin(); iterProjectiles != pProjectileManager->IterEnd(); iterProjectiles++)
+    {
+        EntityPacket.Add(*iterProjectiles);
+    }
 
     // Send it
     Player.Send(EntityPacket);

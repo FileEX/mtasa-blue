@@ -105,6 +105,7 @@ class CWaterManager;
 class CTrainTrackManager;
 class CWeaponStatManager;
 class CBuildingRemovalManager;
+class CProjectileManager;
 
 class CCustomWeaponManager;
 class COpenPortsTester;
@@ -249,6 +250,7 @@ public:
     CWeaponStatManager*              GetWeaponStatManager() { return m_pWeaponStatsManager; }
     CBuildingRemovalManager*         GetBuildingRemovalManager() { return m_pBuildingRemovalManager; }
     CCustomWeaponManager*            GetCustomWeaponManager() { return m_pCustomWeaponManager; }
+    CProjectileManager*              GetProjectileManager() { return m_pProjectileManager; }
     CFunctionUseLogger*              GetFunctionUseLogger() { return m_pFunctionUseLogger; }
     CMasterServerAnnouncer*          GetMasterServerAnnouncer() { return m_pMasterServerAnnouncer; }
     SharedUtil::CAsyncTaskScheduler* GetAsyncTaskScheduler() { return m_pAsyncTaskScheduler; }
@@ -562,6 +564,7 @@ private:
     CRPCFunctions*             m_pRPCFunctions;
     CLanBroadcast*             m_pLanBroadcast;
     CWaterManager*             m_pWaterManager;
+    CProjectileManager*        m_pProjectileManager;
 
     CWeaponStatManager*      m_pWeaponStatsManager;
     CBuildingRemovalManager* m_pBuildingRemovalManager;

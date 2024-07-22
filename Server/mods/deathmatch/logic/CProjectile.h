@@ -14,7 +14,7 @@
 #include "CProjectileManager.h"
 #include "CPerPlayerEntity.h"
 
-class CProjectile : public CPerPlayerEntity
+class CProjectile : public CElement
 {
     friend class CProjectileManager;
 
@@ -25,6 +25,7 @@ public:
     void Unlink();
 
     void SetPosition(const CVector& position);
+    void SetRotation(const CVector& rotation);
 
     void GetVelocity(CVector& velocity) const noexcept { velocity = m_Velocity; }
     void SetVelocity(const CVector& velocity);
@@ -36,7 +37,7 @@ public:
     std::uint32_t GetCounter() const noexcept { return m_Counter; }
 
     CElement*     GetCreator() const noexcept { return m_Creator; }
-    eWeaponType   GetType() const noexcept { return m_ProjectileType; }
+    eWeaponType   GetWeaponType() const noexcept { return m_ProjectileType; }
 
     void          SetTargetEntity(CElement* target) noexcept { m_TargetEntity = target; }
     CElement*     GetTargetEntity() const noexcept { return m_TargetEntity; }
@@ -50,13 +51,11 @@ public:
     void          SetForce(float force) noexcept { m_Force = force; }
     float         GetForce() const noexcept { return m_Force; }
 
-    void          SetCreationTime(std::uint64_t creationTick) noexcept { m_CreationTime = creationTick; }
-
 public:
     std::uint64_t m_CreationTime;
 
 protected:
-    bool ReadSpecialData(const int iLine) override{};
+    bool ReadSpecialData(const int iLine) override;
 
 private:
     CProjectileManager* m_projectileManager;
@@ -66,6 +65,7 @@ private:
     CVector  m_TargetPosition;
     CVector  m_OriginPosition;
     CVector  m_Velocity;
+    CVector   m_Rotation;
 
     eWeaponType   m_ProjectileType;
     std::uint16_t m_Model;

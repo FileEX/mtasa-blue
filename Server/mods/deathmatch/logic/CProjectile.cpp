@@ -17,7 +17,7 @@
 #include <net/rpc_enums.h>
 
 CProjectile::CProjectile(CProjectileManager* projectileManager, CElement* parent, CElement* creator, eWeaponType weaponType)
-    : CPerPlayerEntity(parent),
+    : CElement(parent),
       m_projectileManager(projectileManager),
       m_Creator(creator),
       m_TargetEntity(nullptr),
@@ -32,6 +32,7 @@ CProjectile::CProjectile(CProjectileManager* projectileManager, CElement* parent
     m_iType = CElement::PROJECTILE;
     SetTypeName("projectile");
 
+    m_CreationTime = GetTickCount64_();
     m_projectileManager->AddToList(this);
 }
 
@@ -51,16 +52,14 @@ void CProjectile::SetPosition(const CVector& position)
         return;
 
     m_vecPosition = position;
+}
 
-    GenerateSyncTimeContext();
+void CProjectile::SetRotation(const CVector& rotation)
+{
+    if (m_Rotation == rotation)
+        return;
 
-    // Tell all the players that know about us
-    CBitStream BitStream;
-    BitStream.pBitStream->Write(position.fX);
-    BitStream.pBitStream->Write(position.fY);
-    BitStream.pBitStream->Write(position.fZ);
-    BitStream.pBitStream->Write(GetSyncTimeContext());
-    BroadcastOnlyVisible(CElementRPCPacket(this, SET_ELEMENT_POSITION, *BitStream.pBitStream));
+    m_Rotation = rotation;
 }
 
 void CProjectile::SetVelocity(const CVector& velocity)
@@ -69,13 +68,6 @@ void CProjectile::SetVelocity(const CVector& velocity)
         return;
 
     m_Velocity = velocity;
-
-    // Tell all the players that know about us
-    CBitStream BitStream;
-    BitStream.pBitStream->Write(velocity.fX);
-    BitStream.pBitStream->Write(velocity.fY);
-    BitStream.pBitStream->Write(velocity.fZ);
-    BroadcastOnlyVisible(CElementRPCPacket(this, SET_ELEMENT_VELOCITY, *BitStream.pBitStream));
 }
 
 void CProjectile::SetModel(std::uint16_t model)
@@ -87,8 +79,14 @@ void CProjectile::SetCounter(std::uint32_t counter)
 {
     m_Counter = counter;
 
-    // Tell all the players that know about us
-    CBitStream BitStream;
-    BroadcastOnlyVisible(CElementRPCPacket(this, SET_ELEMENT_VELOCITY, *BitStream.pBitStream));
+}
+
+bool CProjectile::ReadSpecialData(const int iLine)
+{
+    int iTemp;
+    if (GetCustomDataInt("dimension", iTemp, true))
+        m_usDimension = static_cast<unsigned short>(iTemp);
+
+    return true;
 }
 

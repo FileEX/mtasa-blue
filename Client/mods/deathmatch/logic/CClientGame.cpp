@@ -5332,6 +5332,25 @@ void CClientGame::SendProjectileSync(CClientProjectile* pProjectile)
             if (pBitStream->Version() >= 0x52 || pOriginSource)            // Fix possible error for 0x51 server
                 pBitStream->Write(pProjectile->GetModel());
 
+        // Write velocity & rotation
+        SVelocitySync velocity;
+        pProjectile->GetVelocity(velocity.data.vecVelocity);
+        pBitStream->Write(&velocity);
+
+        SRotationRadiansSync rotation(true);
+        pProjectile->GetRotationRadians(rotation.data.vecRotation);
+        pBitStream->Write(&rotation);
+
+        // Write counter
+        pBitStream->Write(pProjectile->GetCounter());
+
+        // Write target pos
+        CVector* targetPosition = pProjectile->GetTarget();
+        if (!targetPosition)
+            targetPosition = new CVector(0, 0, 0);
+
+        pBitStream->WriteVector(targetPosition->fX, targetPosition->fY, targetPosition->fZ);
+
         switch (weaponType)
         {
             case WEAPONTYPE_GRENADE:
@@ -5342,10 +5361,6 @@ void CClientGame::SendProjectileSync(CClientProjectile* pProjectile)
                 SFloatSync<7, 17> projectileForce;
                 projectileForce.data.fValue = pProjectile->GetForce();
                 pBitStream->Write(&projectileForce);
-
-                SVelocitySync velocity;
-                pProjectile->GetVelocity(velocity.data.vecVelocity);
-                pBitStream->Write(&velocity);
 
                 break;
             }
@@ -5359,14 +5374,6 @@ void CClientGame::SendProjectileSync(CClientProjectile* pProjectile)
                 }
                 else
                     pBitStream->WriteBit(false);
-
-                SVelocitySync velocity;
-                pProjectile->GetVelocity(velocity.data.vecVelocity);
-                pBitStream->Write(&velocity);
-
-                SRotationRadiansSync rotation(true);
-                pProjectile->GetRotationRadians(rotation.data.vecRotation);
-                pBitStream->Write(&rotation);
 
                 break;
             }

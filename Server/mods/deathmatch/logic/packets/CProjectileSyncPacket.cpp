@@ -42,6 +42,22 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
     if (!BitStream.Read(m_usModel))
         return false;
 
+    SVelocitySync velocity;
+    if (!BitStream.Read(&velocity))
+        return false;
+    m_vecMoveSpeed = velocity.data.vecVelocity;
+
+    SRotationRadiansSync rotation(true);
+    if (!BitStream.Read(&rotation))
+        return false;
+    m_vecRotation = rotation.data.vecRotation;
+
+    if (!BitStream.Read(m_Counter))
+        return false;
+
+    if (!BitStream.ReadVector(m_vecTarget.fX, m_vecTarget.fY, m_vecTarget.fZ))
+        return false;
+
     switch (m_ucWeaponType)
     {
         case 16:            // WEAPONTYPE_GRENADE
@@ -54,11 +70,6 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
                 return false;
             m_fForce = projectileForce.data.fValue;
 
-            SVelocitySync velocity;
-            if (!BitStream.Read(&velocity))
-                return false;
-            m_vecMoveSpeed = velocity.data.vecVelocity;
-
             break;
         }
         case 19:            // WEAPONTYPE_ROCKET
@@ -70,16 +81,6 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             m_TargetID = INVALID_ELEMENT_ID;
             if (m_bHasTarget && !BitStream.Read(m_TargetID))
                 return false;
-
-            SVelocitySync velocity;
-            if (!BitStream.Read(&velocity))
-                return false;
-            m_vecMoveSpeed = velocity.data.vecVelocity;
-
-            SRotationRadiansSync rotation(true);
-            if (!BitStream.Read(&rotation))
-                return false;
-            m_vecRotation = rotation.data.vecRotation;
 
             break;
         }
@@ -125,6 +126,18 @@ bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream) const
 
     BitStream.Write(m_usModel);
 
+    SVelocitySync velocity;
+    velocity.data.vecVelocity = m_vecMoveSpeed;
+    BitStream.Write(&velocity);
+
+    SRotationRadiansSync rotation(true);
+    rotation.data.vecRotation = m_vecRotation;
+    BitStream.Write(&rotation);
+
+    BitStream.Write(m_Counter);
+
+    BitStream.WriteVector(m_vecTarget.fX, m_vecTarget.fY, m_vecTarget.fZ);
+
     switch (m_ucWeaponType)
     {
         case 16:            // WEAPONTYPE_GRENADE
@@ -135,10 +148,6 @@ bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream) const
             SFloatSync<7, 17> projectileForce;
             projectileForce.data.fValue = m_fForce;
             BitStream.Write(&projectileForce);
-
-            SVelocitySync velocity;
-            velocity.data.vecVelocity = m_vecMoveSpeed;
-            BitStream.Write(&velocity);
 
             break;
         }
@@ -152,14 +161,6 @@ bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream) const
             }
             else
                 BitStream.WriteBit(false);
-
-            SVelocitySync velocity;
-            velocity.data.vecVelocity = m_vecMoveSpeed;
-            BitStream.Write(&velocity);
-
-            SRotationRadiansSync rotation(true);
-            rotation.data.vecRotation = m_vecRotation;
-            BitStream.Write(&rotation);
 
             break;
         }

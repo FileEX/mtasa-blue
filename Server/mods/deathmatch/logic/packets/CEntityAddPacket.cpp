@@ -26,6 +26,7 @@
 #include "CVehicleManager.h"
 #include "CHandlingManager.h"
 #include "CGame.h"
+#include <CProjectile.h>
 
 //
 // Temporary helper functions for fixing crashes on pre r6459 clients.
@@ -1112,6 +1113,57 @@ bool CEntityAddPacket::Write(NetBitStreamInterface& BitStream) const
                     if (BitStream.Can(eBitStreamVersion::Water_bShallow_ServerSide))
                         BitStream.WriteBit(pWater->IsWaterShallow());
                     break;
+                }
+
+                case CElement::PROJECTILE:
+                {
+                    if (BitStream.Can(eBitStreamVersion::Projectiles_Sync))
+                    {
+                        CProjectile* pProjectile = static_cast<CProjectile*>(pElement);
+
+                        position.data.vecPosition = pProjectile->GetPosition();
+                        BitStream.Write(&position);
+
+                        SRotationRadiansSync rotation;
+                        pProjectile->GetRotation(rotation.data.vecRotation);
+                        BitStream.Write(&rotation);
+
+                        SWeaponTypeSync weaponType;
+                        weaponType.data.ucWeaponType = pProjectile->GetWeaponType();
+                        BitStream.Write(&weaponType);
+
+                        CElement* pTarget = pProjectile->GetTargetEntity();
+                        if (pTarget)
+                        {
+                            BitStream.WriteBit(true);
+                            BitStream.Write(pTarget->GetID());
+                        }
+                        else
+                            BitStream.WriteBit(false);
+
+                        CElement* pCreator = pProjectile->GetCreator();
+                        if (pCreator)
+                        {
+                            BitStream.WriteBit(true);
+                            BitStream.Write(pTarget->GetID());
+                        }
+                        else
+                            BitStream.WriteBit(false);
+
+                        CVector originPosition;
+                        pProjectile->GetOrigin(originPosition);
+                        BitStream.WriteVector(originPosition.fX, originPosition.fY, originPosition.fZ);
+
+                        SVelocitySync velocity;
+                        pProjectile->GetVelocity(velocity.data.vecVelocity);
+                        BitStream.Write(&velocity);
+
+                        SFloatSync<7, 17> force;
+                        force.data.fValue = pProjectile->GetForce();
+                        BitStream.Write(&force);
+
+                        BitStream.WriteCompressed(pProjectile->GetCounter());
+                    }
                 }
 
                 default:

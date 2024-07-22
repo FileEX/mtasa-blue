@@ -45,6 +45,7 @@
 #include "CRegistryManager.h"
 #include "CLatentTransferManager.h"
 #include "CCommandFile.h"
+#include "CProjectileManager.h"
 #include "packets/CVoiceEndPacket.h"
 #include "packets/CEntityAddPacket.h"
 #include "packets/CUpdateInfoPacket.h"
@@ -195,7 +196,9 @@ CGame::CGame() : m_FloodProtect(4, 30000, 30000)            // Max of 4 connecti
     m_pWeaponStatsManager = NULL;
     m_pBuildingRemovalManager = NULL;
     m_pCustomWeaponManager = NULL;
+    m_pProjectileManager = nullptr;
     m_pFunctionUseLogger = NULL;
+
 #ifdef WITH_OBJECT_SYNC
     m_pObjectSync = NULL;
 #endif
@@ -396,6 +399,7 @@ CGame::~CGame()
     SAFE_DELETE(m_pWeaponStatsManager);
     SAFE_DELETE(m_pBuildingRemovalManager);
     SAFE_DELETE(m_pCustomWeaponManager);
+    SAFE_DELETE(m_pProjectileManager);
     SAFE_DELETE(m_pFunctionUseLogger);
     SAFE_DELETE(m_pOpenPortsTester);
     SAFE_DELETE(m_pMasterServerAnnouncer);
@@ -553,6 +557,8 @@ void CGame::DoPulse()
 
     CLOCK_CALL1(m_pMapManager->GetWeather()->DoPulse(););
 
+    CLOCK_CALL1(m_pProjectileManager->DoPulse(););
+
     PrintLogOutputFromNetModule();
     m_pScriptDebugging->UpdateLogOutput();
 
@@ -607,6 +613,8 @@ bool CGame::Start(int iArgumentCount, char* szArguments[])
     m_pCustomWeaponManager = new CCustomWeaponManager();
 
     m_pTrainTrackManager = std::make_shared<CTrainTrackManager>();
+
+    m_pProjectileManager = new CProjectileManager();
 
     // Parse the commandline
     if (!m_CommandLineParser.Parse(iArgumentCount, szArguments))
@@ -2840,6 +2848,17 @@ void CGame::Packet_ProjectileSync(CProjectileSyncPacket& Packet)
         // Trigger Lua event and see if we are allowed to continue
         if (!pPlayer->CallEvent("onPlayerProjectileCreation", arguments))
             return;
+
+        // Create projectile instance
+        CProjectile* createdProjectile = m_pProjectileManager->Create(pPlayer, pPlayer, static_cast<eWeaponType>(Packet.m_ucWeaponType));
+        createdProjectile->SetTargetEntity(pTarget);
+        createdProjectile->SetForce(Packet.m_fForce);
+        createdProjectile->SetOrigin(vecPosition);
+        createdProjectile->SetVelocity(Packet.m_vecMoveSpeed);
+        createdProjectile->SetPosition(vecPosition);
+        createdProjectile->SetRotation(Packet.m_vecRotation);
+        createdProjectile->SetCounter(Packet.m_Counter);
+        createdProjectile->SetTarget(Packet.m_vecTarget);
 
         // Make a list of players to send this packet to
         CSendList sendList;

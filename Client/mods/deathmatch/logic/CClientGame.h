@@ -121,6 +121,7 @@ public:
         WATER,
         WEAPON,
         POINTLIGHTS,
+        PROJECTILE,
         UNKNOWN,
     };
 

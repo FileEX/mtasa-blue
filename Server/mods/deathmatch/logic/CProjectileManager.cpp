@@ -48,8 +48,15 @@ void CProjectileManager::DoPulse()
 
     for (auto it = IterBegin(); it != IterEnd();)
     {
-        if (GetTickCount64_() >= (*it)->m_CreationTime + (*it)->m_Counter)
-            delete *it;
+        CProjectile* projectile = *it;
+
+        if (GetTickCount64_() >= projectile->m_CreationTime + projectile->m_Counter)
+        {
+            it = m_projectilesList.erase(it);
+            delete projectile;
+        }
+        else
+            ++it;
     }
 
     m_updateProjectilesListTimer.Reset();

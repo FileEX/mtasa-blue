@@ -35,4 +35,5 @@ public:
     CVector        m_vecRotation;
     CVector        m_vecMoveSpeed;
     unsigned short m_usModel;
+    std::uint32_t  m_Counter;
 };

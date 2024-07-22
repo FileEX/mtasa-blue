@@ -4170,6 +4170,54 @@ retry:
                     break;
                 }
 
+                case CClientGame::PROJECTILE:
+                {
+                    if (bitStream.Can(eBitStreamVersion::Projectiles_Sync))
+                    {
+                        SRotationRadiansSync rotation;
+                        SWeaponTypeSync weaponType;
+                        CVector         origin;
+                        SVelocitySync   velocity;
+                        SFloatSync<7, 17> force;
+                        std::uint32_t     counter;
+                        CVector           targetPos;
+
+                        bitStream.Read(&position);
+                        bitStream.Read(&rotation);
+                        bitStream.Read(&weaponType);
+
+                        CClientEntity* target;
+                        if (bitStream.ReadBit())
+                        {
+                            ElementID targetID;
+                            bitStream.Read(targetID);
+                            target = CElementIDs::GetElement(targetID);
+                        }
+
+                        CClientEntity* creator;
+                        if (bitStream.ReadBit())
+                        {
+                            ElementID creatorID;
+                            bitStream.Read(creatorID);
+                            creator = CElementIDs::GetElement(creatorID);
+                        }
+
+                        bitStream.ReadVector(origin.fX, origin.fY, origin.fZ);
+                        bitStream.Read(&velocity);
+                        bitStream.Read(&force);
+                        bitStream.ReadCompressed(counter);
+                        bitStream.ReadVector(targetPos.fX, targetPos.fY, targetPos.fZ);
+
+                        CClientProjectile* projectile = g_pClientGame->GetManager()->GetProjectileManager()->Create(creator, static_cast<eWeaponType>(weaponType.data.ucWeaponType), origin, force.data.fValue, &targetPos, target);
+                        if (projectile)
+                        {
+                            projectile->SetCounter(counter);
+                            projectile->SetPosition(position.data.vecPosition);
+                            projectile->SetRotationRadians(rotation.data.vecRotation);
+                        }
+                    }
+                }
+
                 default:
                 {
                     assert(0);
@@ -4800,6 +4848,24 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
     CClientEntity*       pTargetEntity = NULL;
     SVelocitySync        velocity;
     SRotationRadiansSync rotation(true);
+    std::uint32_t        counter;
+
+    // Read out the velocity
+    if (!bitStream.Read(&velocity))
+        return;
+
+    // Read out the rotation
+    if (!bitStream.Read(&rotation))
+        return;
+
+    // Read out the counter
+    if (!bitStream.Read(counter))
+        return;
+
+    // Read out the target position
+    CVector targetVector;
+    if (!bitStream.ReadVector(targetVector.fX, targetVector.fY, targetVector.fZ))
+        return;
 
     switch (weaponType)
     {
@@ -4814,9 +4880,6 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
                 return;
             fForce = projectileForce.data.fValue;
 
-            // Read the velocity
-            if (!bitStream.Read(&velocity))
-                return;
             bCreateProjectile = true;
 
             break;
@@ -4834,14 +4897,6 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
 
             ElementID TargetID = INVALID_ELEMENT_ID;
             if (bHasTarget && !bitStream.Read(TargetID))
-                return;
-
-            // Read out the velocity
-            if (!bitStream.Read(&velocity))
-                return;
-
-            // Read out the rotation
-            if (!bitStream.Read(&rotation))
                 return;
 
             if (TargetID != INVALID_ELEMENT_ID)
