@@ -13,7 +13,7 @@
 #include "CPlayerManager.h"
 #include "Utils.h"
 #include "CProjectileManager.h"
-#include "packets/CProjectileSyncPacket.h"
+//#include "packets/CProjectileSyncPacket.h"
 
 class CProjectileSync
 {
@@ -37,7 +37,7 @@ private:
     void StartSync(CPlayer* player, CProjectile* projectile);
     void StopSync(CProjectile* projectile);
 
-    void Packet_ProjectileSync(CProjectileSyncPacket& packet);
+    //void Packet_ProjectileSync(CProjectileSyncPacket& packet);
 
     CPlayerManager* m_playerManager;
     CProjectileManager* m_projectileManager;

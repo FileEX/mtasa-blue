@@ -1,25 +1,25 @@
 /*****************************************************************************
  *
- *  PROJECT:     Multi Theft Auto v1.0
+ *  PROJECT:     Multi Theft Auto
  *  LICENSE:     See LICENSE in the top level directory
- *  FILE:        mods/deathmatch/logic/packets/CProjectileSyncPacket.cpp
+ *  FILE:        mods/deathmatch/logic/packets/CProjectileCreationSyncPacket.cpp
  *  PURPOSE:     Projectile synchronization packet class
  *
- *  Multi Theft Auto is available from http://www.multitheftauto.com/
+ *  Multi Theft Auto is available from https://www.multitheftauto.com/
  *
  *****************************************************************************/
 
 #include "StdInc.h"
-#include "CProjectileSyncPacket.h"
+#include "CProjectileCreationSyncPacket.h"
 #include "CPlayer.h"
 #include <net/SyncStructures.h>
 
-CProjectileSyncPacket::CProjectileSyncPacket()
+CProjectileCreationSyncPacket::CProjectileCreationSyncPacket()
 {
     m_usModel = 0;
 }
 
-bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
+bool CProjectileCreationSyncPacket::Read(NetBitStreamInterface& BitStream)
 {
     bool bHasOrigin;
     if (!BitStream.ReadBit(bHasOrigin))
@@ -94,7 +94,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
     return true;
 }
 
-bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream) const
+bool CProjectileCreationSyncPacket::Write(NetBitStreamInterface& BitStream) const
 {
     // Write the source player and latency if any. Otherwize 0
     if (m_pSourceElement)

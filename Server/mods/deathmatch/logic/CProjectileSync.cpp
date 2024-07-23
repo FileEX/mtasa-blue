@@ -161,5 +161,9 @@ CPlayer* CProjectileSync::FindPlayerCloseToProjectile(CProjectile* projectile, f
 
 void CProjectileSync::Packet_ProjectileSync(CProjectileSyncPacket& packet)
 {
+    CPlayer* player = packet.GetSourcePlayer();
+    if (!player || !player->IsJoined())
+        return;
+
 
 }

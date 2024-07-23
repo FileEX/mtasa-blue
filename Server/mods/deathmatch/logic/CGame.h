@@ -23,7 +23,7 @@ class CGame;
 
 #include "packets/CCommandPacket.h"
 #include "packets/CExplosionSyncPacket.h"
-#include "packets/CProjectileSyncPacket.h"
+#include "packets/CProjectileCreationSyncPacket.h"
 #include "packets/CPedWastedPacket.h"
 #include "packets/CPlayerJoinDataPacket.h"
 #include "packets/CPlayerQuitPacket.h"
@@ -126,7 +126,7 @@ class CPlayerPuresyncPacket;
 class CPlayerQuitPacket;
 class CPlayerTimeoutPacket;
 class CPlayerWastedPacket;
-class CProjectileSyncPacket;
+class CProjectileCreationSyncPacket;
 class CVehicleDamageSyncPacket;
 class CVehicleInOutPacket;
 class CVehiclePuresyncPacket;
@@ -487,7 +487,7 @@ private:
     void Packet_DetonateSatchels(class CDetonateSatchelsPacket& Packet);
     void Packet_DestroySatchels(class CDestroySatchelsPacket& Packet);
     void Packet_ExplosionSync(class CExplosionSyncPacket& Packet);
-    void Packet_ProjectileSync(class CProjectileSyncPacket& Packet);
+    void Packet_ProjectileCreationSync(class CProjectileCreationSyncPacket& Packet);
     void Packet_Command(class CCommandPacket& Packet);
     void Packet_VehicleDamageSync(class CVehicleDamageSyncPacket& Packet);
     void Packet_VehiclePuresync(class CVehiclePuresyncPacket& Packet);

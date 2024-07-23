@@ -1197,7 +1197,7 @@ bool CGame::ProcessPacket(CPacket& Packet)
             return true;
 
         case PACKET_ID_PROJECTILE:
-            Packet_ProjectileSync(static_cast<CProjectileSyncPacket&>(Packet));
+            Packet_ProjectileCreationSync(static_cast<CProjectileCreationSyncPacket&>(Packet));
             return true;
 
         case PACKET_ID_COMMAND:
@@ -2821,7 +2821,7 @@ void CGame::Packet_ExplosionSync(CExplosionSyncPacket& Packet)
         CPlayerManager::Broadcast(Packet, sendList);
 }
 
-void CGame::Packet_ProjectileSync(CProjectileSyncPacket& Packet)
+void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
 {
     // Grab the source player
     CPlayer* pPlayer = Packet.GetSourcePlayer();

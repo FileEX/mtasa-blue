@@ -27,7 +27,7 @@
 #include "packets/CDestroySatchelsPacket.h"
 #include "packets/CCommandPacket.h"
 #include "packets/CExplosionSyncPacket.h"
-#include "packets/CProjectileSyncPacket.h"
+#include "packets/CProjectileCreationSyncPacket.h"
 #include "packets/CVehicleInOutPacket.h"
 #include "packets/CVehicleDamageSyncPacket.h"
 #include "packets/CVehicleTrailerPacket.h"
@@ -129,7 +129,7 @@ CPacket* CPacketTranslator::Translate(const NetServerPlayerID& Socket, ePacketID
             break;
 
         case PACKET_ID_PROJECTILE:
-            pTemp = new CProjectileSyncPacket;
+            pTemp = new CProjectileCreationSyncPacket;
             break;
 
         case PACKET_ID_VEHICLE_INOUT:
