@@ -28,6 +28,7 @@
 #include "CUnoccupiedVehicleSync.h"
 #include "CPedSync.h"
 #include "CObjectSync.h"
+#include "CProjectileSync.h"
 #include "CRadarMap.h"
 #include "CClientTeamManager.h"
 #include "CClientPedManager.h"
@@ -300,6 +301,7 @@ public:
 #ifdef WITH_OBJECT_SYNC
     CObjectSync* GetObjectSync() { return m_pObjectSync; }
 #endif
+    CProjectileSync*          GetProjectileSync() { return m_pProjectileSync; }
     CLatentTransferManager*   GetLatentTransferManager() { return m_pLatentTransferManager; }
     CClientModelCacheManager* GetModelCacheManager() { return m_pModelCacheManager; }
     CDebugHookManager*        GetDebugHookManager() { return m_pDebugHookManager; }
@@ -675,6 +677,7 @@ private:
 #ifdef WITH_OBJECT_SYNC
     CObjectSync* m_pObjectSync;
 #endif
+    CProjectileSync*       m_pProjectileSync;
     CMovingObjectsManager* m_pMovingObjectsManager;
     CNametags*             m_pNametags;
     CNetAPI*               m_pNetAPI;

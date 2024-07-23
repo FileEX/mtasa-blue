@@ -225,6 +225,7 @@ CClientGame::CClientGame(bool bLocalPlay) : m_ServerInfo(new CServerInfo())
 #ifdef WITH_OBJECT_SYNC
     m_pObjectSync = new CObjectSync(m_pObjectManager);
 #endif
+    m_pProjectileSync = new CProjectileSync(m_pProjectileManager);
     m_pNametags = new CNametags(m_pManager);
     m_pRadarMap = new CRadarMap(m_pManager);
 
@@ -540,6 +541,7 @@ CClientGame::~CClientGame()
 #ifdef WITH_OBJECT_SYNC
     SAFE_DELETE(m_pObjectSync);
 #endif
+    SAFE_DELETE(m_pProjectileSync);
     SAFE_DELETE(m_pBlendedWeather);
     SAFE_DELETE(m_pMovingObjectsManager);
     SAFE_DELETE(m_pRadarMap);
@@ -1200,6 +1202,7 @@ void CClientGame::DoPulses()
 #ifdef WITH_OBJECT_SYNC
     m_pObjectSync->DoPulse();
 #endif
+    m_pProjectileSync->DoPulse();
     m_pLatentTransferManager->DoPulse();
     m_pLuaManager->DoPulse();
     m_pScriptDebugging->UpdateLogOutput();
