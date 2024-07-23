@@ -13,6 +13,9 @@
 #include "CProjectileSync.h"
 #include <packets/CProjectileStartSyncPacket.h>
 #include <packets/CProjectileStopSyncPacket.h>
+#include <CElementIDs.h>
+#include "CGame.h"
+#include "CColManager.h"
 
 CProjectileSync::CProjectileSync(CPlayerManager* playerManager, CProjectileManager* projectileManager)
     : m_playerManager(playerManager), m_projectileManager(projectileManager)
@@ -165,5 +168,30 @@ void CProjectileSync::Packet_ProjectileSync(CProjectileSyncPacket& packet)
     if (!player || !player->IsJoined())
         return;
 
+    // Apply data for each projectile in packet
+    for (auto& Data : packet.m_Syncs)
+    {
+        // Grab the projectile
+        CElement* projectileElement = CElementIDs::GetElement(Data->ID);
+        if (!projectileElement || !IS_PROJECTILE(projectileElement))
+            continue;
 
+        // Check if the time context matches.
+        CProjectile* projectile = static_cast<CProjectile*>(projectileElement);
+        if (projectile->GetSyncer() != player || !projectile->CanUpdateSync(Data->syncTimeContext))
+            continue;
+
+        // Apply data
+        if (Data->flags & 0x1)
+        {
+            projectile->SetPosition(Data->position);
+            g_pGame->GetColManager()->DoHitDetection(projectile->GetPosition(), projectile);
+        }
+        if (Data->flags & 0x2)
+            projectile->SetRotation(Data->rotation);
+        if (Data->flags & 0x3)
+            projectile->SetVelocity(Data->velocity);
+    }
+
+    m_playerManager->BroadcastOnlyJoined(packet, player);
 }
