@@ -10,16 +10,13 @@
  *****************************************************************************/
 #pragma once
 
-#include "CVector.h"
+#include "CElement.h"
 #include "CProjectileManager.h"
-#include "CPerPlayerEntity.h"
 
 class CProjectile : public CElement
 {
-    friend class CProjectileManager;
-
 public:
-    CProjectile(CProjectileManager* projectileManager, CElement* parent, CElement* creator, eWeaponType weaponType);
+    CProjectile(class CProjectileManager* projectileManager, CElement* parent, CElement* creator, eWeaponType weaponType);
     ~CProjectile();
 
     void Unlink();
@@ -54,14 +51,14 @@ public:
     bool     IsSyncable() const noexcept { return m_syncable; }
     void     SetSyncable(bool syncable) noexcept { m_syncable = syncable; }
 
-    void     SetSyncer(CPlayer* player) noexcept;
+    void     SetSyncer(CPlayer* player) noexcept { m_syncer = player; }
     CPlayer* GetSyncer() { return m_syncer; }
-
-public:
-    std::uint64_t m_CreationTime;
 
 protected:
     bool ReadSpecialData(const int iLine) override;
+
+public:
+    std::uint64_t m_CreationTime;
 
 private:
     CProjectileManager* m_projectileManager;

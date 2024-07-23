@@ -12,9 +12,6 @@
 #pragma once
 
 #include "CProjectile.h"
-#include "Utils.h"
-
-class CElement;
 
 class CProjectileManager
 {
@@ -28,7 +25,7 @@ public:
     void         DestroyProjectiles(CPlayer* creator);
     void         DoPulse();
 
-    void DeleteAll() { DeletePointersAndClearList(m_projectilesList); }
+    void DeleteAll();
 
     std::uint32_t Count() { return m_projectilesList.size(); }
     bool          Exists(CProjectile* projectile) { return ListContains(m_projectilesList, projectile); }

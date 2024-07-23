@@ -11,7 +11,6 @@
 
 #include "StdInc.h"
 #include "CProjectileManager.h"
-#include "CProjectile.h"
 #include "Utils.h"
 
 CProjectileManager::CProjectileManager()
@@ -36,7 +35,7 @@ void CProjectileManager::DestroyProjectiles(CPlayer* creator)
 {
     for (auto it = IterBegin(); it != IterEnd();)
     {
-        if ((*it)->GetCreator() == creator)
+        if (static_cast<CElement*>((*it)->GetCreator()) == creator)
             delete *it;
     }
 }
@@ -50,7 +49,7 @@ void CProjectileManager::DoPulse()
     {
         CProjectile* projectile = *it;
 
-        if (GetTickCount64_() >= projectile->m_CreationTime + projectile->m_Counter)
+        if (GetTickCount64_() >= projectile->m_CreationTime + projectile->GetCounter())
         {
             it = m_projectilesList.erase(it);
             delete projectile;
@@ -60,4 +59,9 @@ void CProjectileManager::DoPulse()
     }
 
     m_updateProjectilesListTimer.Reset();
+}
+
+void CProjectileManager::DeleteAll()
+{
+    DeletePointersAndClearList(m_projectilesList);
 }

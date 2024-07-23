@@ -21,9 +21,9 @@ class CPlayer;
 #include "CTeam.h"
 #include "CPad.h"
 #include "CObject.h"
+#include "CProjectile.h"
 #include "packets/CPacket.h"
 #include "packets/CPlayerStatsPacket.h"
-#include <CProjectile.h>
 
 class CKeyBinds;
 class CPlayerCamera;

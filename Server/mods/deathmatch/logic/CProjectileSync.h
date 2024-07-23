@@ -11,6 +11,7 @@
 #pragma once
 
 #include "CPlayerManager.h"
+#include "Utils.h"
 #include "CProjectileManager.h"
 #include "packets/CProjectileSyncPacket.h"
 
