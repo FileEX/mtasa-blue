@@ -236,6 +236,8 @@ bool CPacketHandler::ProcessPacket(unsigned char ucPacketID, NetBitStreamInterfa
     else if (g_pClientGame->GetObjectSync()->ProcessPacket(ucPacketID, bitStream))
         return true;
 #endif
+    else if (g_pClientGame->GetProjectileSync()->ProcessPacket(ucPacketID, bitStream))
+        return true;
     return false;
 }
 

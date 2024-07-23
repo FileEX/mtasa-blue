@@ -15,6 +15,7 @@
 #include "CLogger.h"
 #include <packets/CElementRPCPacket.h>
 #include <net/rpc_enums.h>
+#include "CPlayer.h"
 
 CProjectile::CProjectile(CProjectileManager* projectileManager, CElement* parent, CElement* creator, eWeaponType weaponType)
     : CElement(parent),
@@ -27,7 +28,9 @@ CProjectile::CProjectile(CProjectileManager* projectileManager, CElement* parent
       m_ProjectileType(weaponType),
       m_Model(0),
       m_Counter(0),
-      m_Force(0.0f)
+      m_Force(0.0f),
+      m_syncable(true),
+      m_syncer(nullptr)
 {
     m_iType = CElement::PROJECTILE;
     SetTypeName("projectile");
@@ -72,13 +75,34 @@ void CProjectile::SetVelocity(const CVector& velocity)
 
 void CProjectile::SetModel(std::uint16_t model)
 {
+    if (m_Model == model)
+        return;
 
+    m_Model = model;
 }
 
 void CProjectile::SetCounter(std::uint32_t counter)
 {
     m_Counter = counter;
 
+}
+
+void CProjectile::SetSyncer(CPlayer* player)
+{
+    static bool alreadyIn = false;
+    if (alreadyIn)
+        return;
+
+    alreadyIn = true;
+    if (m_syncer)
+        m_syncer->RemoveSyncingProjectile(this);
+
+    if (player)
+        player->AddSyncingProjectile(this);
+
+    alreadyIn = false;
+
+    m_syncer = player;
 }
 
 bool CProjectile::ReadSpecialData(const int iLine)

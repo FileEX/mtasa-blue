@@ -1121,6 +1121,7 @@ bool CEntityAddPacket::Write(NetBitStreamInterface& BitStream) const
                     {
                         CProjectile* pProjectile = static_cast<CProjectile*>(pElement);
 
+                        SPositionSync position;
                         position.data.vecPosition = pProjectile->GetPosition();
                         BitStream.Write(&position);
 

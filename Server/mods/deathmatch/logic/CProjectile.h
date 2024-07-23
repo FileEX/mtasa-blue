@@ -22,10 +22,12 @@ public:
     void Unlink();
 
     void SetPosition(const CVector& position);
-    void SetRotation(const CVector& rotation);
 
-    void GetVelocity(CVector& velocity) const noexcept { velocity = m_Velocity; }
+    void SetRotation(const CVector& rotation);
+    void GetRotation(CVector& rotation) const noexcept { rotation = m_Rotation; }
+
     void SetVelocity(const CVector& velocity);
+    void GetVelocity(CVector& velocity) const noexcept { velocity = m_Velocity; }
 
     void          SetModel(std::uint16_t model);
     std::uint16_t GetModel() const noexcept { return m_Model; }
@@ -51,7 +53,7 @@ public:
     bool     IsSyncable() const noexcept { return m_syncable; }
     void     SetSyncable(bool syncable) noexcept { m_syncable = syncable; }
 
-    void     SetSyncer(CPlayer* player) noexcept { m_syncer = player; }
+    void           SetSyncer(CPlayer* player);
     CPlayer* GetSyncer() { return m_syncer; }
 
 protected:

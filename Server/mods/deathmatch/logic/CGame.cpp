@@ -2868,6 +2868,7 @@ void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
         createdProjectile->SetRotation(Packet.m_vecRotation);
         createdProjectile->SetCounter(Packet.m_Counter);
         createdProjectile->SetTarget(Packet.m_vecTarget);
+        createdProjectile->SetModel(Packet.m_usModel);
 
         // Make a list of players to send this packet to
         CSendList sendList;

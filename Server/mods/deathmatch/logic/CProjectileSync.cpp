@@ -139,7 +139,7 @@ CPlayer* CProjectileSync::FindPlayerCloseToProjectile(CProjectile* projectile, f
 {
     CVector projectilePos = projectile->GetPosition();
 
-    CPlayer* lastSyncer;
+    CPlayer* lastSyncer = nullptr;
     CPlayer* syncer;
 
     for (auto iter = m_playerManager->IterBegin(); iter != m_playerManager->IterEnd(); iter++)
@@ -155,7 +155,7 @@ CPlayer* CProjectileSync::FindPlayerCloseToProjectile(CProjectile* projectile, f
         if (!IsPointNearPoint3D(projectilePos, syncer->GetPosition(), maxDist))
             continue;
 
-        if (!lastSyncer || syncer->CountSyncingProjectiles() < lastSyncer->CountSyncingProjectiles())
+        if (!lastSyncer || (lastSyncer && syncer->CountSyncingProjectiles() < lastSyncer->CountSyncingProjectiles()))
             lastSyncer = syncer;
     }
 
