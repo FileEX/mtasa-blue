@@ -49,6 +49,13 @@ public:
     unsigned short usModel;
 };
 
+struct SLastSyncedProjectileData
+{
+    CVector position;
+    CVector rotation;
+    CVector velocity;
+};
+
 class CClientProjectile final : public CClientEntity
 {
     DECLARE_CLASS(CClientProjectile, CClientEntity)
@@ -94,6 +101,7 @@ public:
     bool           IsLocal() { return m_bLocal; }
     CClientEntity* GetSatchelAttachedTo();
 
+    SLastSyncedProjectileData* m_LastSyncedData;
 protected:
     CClientProjectileManager* m_pProjectileManager;
     bool                      m_bLinked;

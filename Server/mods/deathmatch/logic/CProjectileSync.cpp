@@ -184,13 +184,13 @@ void CProjectileSync::Packet_ProjectileSync(CProjectileSyncPacket& packet)
         // Apply data
         if (Data->flags & 0x1)
         {
-            projectile->SetPosition(Data->position);
+            projectile->SetPosition(Data->position.data.vecPosition);
             g_pGame->GetColManager()->DoHitDetection(projectile->GetPosition(), projectile);
         }
         if (Data->flags & 0x2)
-            projectile->SetRotation(Data->rotation);
+            projectile->SetRotation(Data->rotation.data.vecRotation);
         if (Data->flags & 0x3)
-            projectile->SetVelocity(Data->velocity);
+            projectile->SetVelocity(Data->velocity.data.vecVelocity);
     }
 
     m_playerManager->BroadcastOnlyJoined(packet, player);

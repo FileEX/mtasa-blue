@@ -12,6 +12,7 @@
 #include "StdInc.h"
 #include "CProjectileStartSyncPacket.h"
 #include "CProjectile.h"
+#include "net/SyncStructures.h"
 
 bool CProjectileStartSyncPacket::Write(NetBitStreamInterface& BitStream) const
 {
@@ -20,16 +21,17 @@ bool CProjectileStartSyncPacket::Write(NetBitStreamInterface& BitStream) const
 
     BitStream.Write(m_projectile->GetID());
 
-    CVector position = m_projectile->GetPosition();
-    BitStream.WriteVector(position.fX, position.fY, position.fZ);
+    SPositionSync position;
+    SRotationRadiansSync rotation;
+    SVelocitySync        velocity;
 
-    CVector rotation;
-    m_projectile->GetRotation(rotation);
-    BitStream.WriteVector(rotation.fX, rotation.fY, rotation.fZ);
+    position.data.vecPosition = m_projectile->GetPosition();
+    m_projectile->GetRotation(rotation.data.vecRotation);
+    m_projectile->GetVelocity(velocity.data.vecVelocity);
 
-    CVector velocity;
-    m_projectile->GetVelocity(velocity);
-    BitStream.WriteVector(velocity.fX, velocity.fY, velocity.fZ);
+    BitStream.Write(&position);
+    BitStream.Write(&rotation);
+    BitStream.Write(&velocity);
 
     return true;
 }

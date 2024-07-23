@@ -28,6 +28,7 @@ public:
     void               RemoveAll();
     bool               Exists(CClientProjectile* pProjectile);
     CClientProjectile* Get(CEntitySAInterface* pProjectile);
+    CClientProjectile* Get(ElementID ID);
 
     unsigned int Count() { return static_cast<unsigned int>(m_List.size()); }
 

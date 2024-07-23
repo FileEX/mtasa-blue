@@ -47,7 +47,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&position))
                 return false;
 
-            Data.position = position.data.vecPosition;
+            Data.position = position;
         }
 
         // Read out the rotation
@@ -57,7 +57,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&rotation))
                 return false;
 
-            Data.rotation = rotation.data.vecRotation;
+            Data.rotation = rotation;
         }
 
         // Read out the velocity
@@ -67,7 +67,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&velocity))
                 return false;
 
-            Data.velocity = velocity.data.vecVelocity;
+            Data.velocity = velocity;
         }
 
         // Add it to list
@@ -95,27 +95,21 @@ bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream)
         // Write position
         if (Data->flags & 0x1)
         {
-            SPositionSync position;
-            position.data.vecPosition = Data->position;
-
+            SPositionSync position = Data->position;
             BitStream.Write(&position);
         }
 
         // Write rotaion
         if (Data->flags & 0x2)
         {
-            SRotationRadiansSync rotation;
-            rotation.data.vecRotation = Data->rotation;
-
+            SRotationRadiansSync rotation = Data->rotation;
             BitStream.Write(&rotation);
         }
 
         // Write velocity
         if (Data->flags & 0x3)
         {
-            SVelocitySync velocity;
-            velocity.data.vecVelocity = Data->velocity;
-
+            SVelocitySync velocity = Data->velocity;
             BitStream.Write(&velocity);
         }
     }

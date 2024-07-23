@@ -96,6 +96,15 @@ CClientProjectile* CClientProjectileManager::Get(CEntitySAInterface* pProjectile
     return NULL;
 }
 
+CClientProjectile* CClientProjectileManager::Get(ElementID ID)
+{
+    CClientEntity* clientEntity = CElementIDs::GetElement(ID);
+    if (!clientEntity || clientEntity->GetType() != CCLIENTPROJECTILE)
+        return nullptr;
+
+    return static_cast<CClientProjectile*>(clientEntity);
+}
+
 void CClientProjectileManager::RemoveFromList(CClientProjectile* pProjectile)
 {
     m_List.remove(pProjectile);

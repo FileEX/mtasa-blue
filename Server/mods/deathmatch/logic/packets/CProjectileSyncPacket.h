@@ -19,9 +19,9 @@ public:
     struct SyncData
     {
         ElementID ID;
-        CVector position;
-        CVector rotation;
-        CVector velocity;
+        SPositionSync position;
+        SRotationRadiansSync rotation;
+        SVelocitySync velocity;
         std::uint8_t flags;
         std::uint8_t syncTimeContext;
     };
