@@ -24,6 +24,7 @@ class CPlayer;
 #include "packets/CPacket.h"
 #include "packets/CPlayerStatsPacket.h"
 #include <CProjectile.h>
+
 class CKeyBinds;
 class CPlayerCamera;
 enum class eVehicleAimDirection : unsigned char;
@@ -171,9 +172,9 @@ public:
     void RemoveSyncingProjectile(CProjectile* projectile);
     void RemoveAllSyncingProjectiles();
 
-    std::uint32_t CountSyncingProjectiles() { return m_SyncingProjectiles.size(); }
-    std::list<CProjectile*>::const_iterator IterSyncingProjectileBegin() { return m_SyncingProjectiles.begin(); }
-    std::list<CProjectile*>::const_iterator IterSyncingProjectileEnd() { return m_SyncingProjectiles.end(); }
+    std::uint32_t                           CountSyncingProjectiles() { return m_SyncingProjectiles.size(); };
+    std::list<CProjectile*>::const_iterator IterSyncingProjectileBegin() { return m_SyncingProjectiles.begin(); };
+    std::list<CProjectile*>::const_iterator IterSyncingProjectileEnd() { return m_SyncingProjectiles.end(); };
 
     unsigned int GetScriptDebugLevel() { return m_uiScriptDebugLevel; };
     bool         SetScriptDebugLevel(std::uint8_t level);

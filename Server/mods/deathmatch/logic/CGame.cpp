@@ -192,6 +192,7 @@ CGame::CGame() : m_FloodProtect(4, 30000, 30000)            // Max of 4 connecti
     m_pRPCFunctions = NULL;
     m_pLanBroadcast = NULL;
     m_pPedSync = NULL;
+    m_pProjectileSync = nullptr;
     m_pWaterManager = NULL;
     m_pWeaponStatsManager = NULL;
     m_pBuildingRemovalManager = NULL;
@@ -357,6 +358,7 @@ CGame::~CGame()
 #ifdef WITH_OBJECT_SYNC
     SAFE_DELETE(m_pObjectSync);
 #endif
+    SAFE_DELETE(m_pProjectileSync);
     SAFE_DELETE(m_pConsole);
     SAFE_DELETE(m_pLuaManager);
     SAFE_DELETE(m_pMapManager);
@@ -507,6 +509,7 @@ void CGame::DoPulse()
 #ifdef WITH_OBJECT_SYNC
     CLOCK_CALL1(m_pObjectSync->DoPulse(););
 #endif
+    CLOCK_CALL1(m_pProjectileSync->DoPulse(););
     CLOCK_CALL1(m_pBanManager->DoPulse(););
     CLOCK_CALL1(m_pAccountManager->DoPulse(););
     CLOCK_CALL1(m_pRegistryManager->DoPulse(););
@@ -880,6 +883,8 @@ bool CGame::Start(int iArgumentCount, char* szArguments[])
 #ifdef WITH_OBJECT_SYNC
     m_pObjectSync = new CObjectSync(m_pPlayerManager, m_pObjectManager);
 #endif
+    m_pProjectileSync = new CProjectileSync(m_pPlayerManager, m_pProjectileManager);
+
     // Must be created before all clients
     m_pConsoleClient = new CConsoleClient(m_pConsole);
 
@@ -1310,6 +1315,10 @@ bool CGame::ProcessPacket(CPacket& Packet)
         return true;
     }
 #endif
+    else if (m_pProjectileSync->ProcessPacket(Packet))
+    {
+        return true;
+    }
     return false;
 }
 

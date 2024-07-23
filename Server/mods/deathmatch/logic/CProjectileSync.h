@@ -43,5 +43,4 @@ private:
     bool                m_syncPersist = false;
 
     CElapsedTime m_updateSyncerTimer;
-    CElapsedTime m_updateNearListTimer;
 };

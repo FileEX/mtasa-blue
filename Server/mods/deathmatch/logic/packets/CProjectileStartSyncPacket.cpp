@@ -31,7 +31,5 @@ bool CProjectileStartSyncPacket::Write(NetBitStreamInterface& BitStream) const
     m_projectile->GetVelocity(velocity);
     BitStream.WriteVector(velocity.fX, velocity.fY, velocity.fZ);
 
-    BitStream.Write(m_projectile->GetForce());
-
     return true;
 }

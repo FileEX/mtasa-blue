@@ -58,6 +58,7 @@ class CGame;
 
 #include "CLightsyncManager.h"
 #include "CBanManager.h"
+#include <CProjectileSync.h>
 
 // Forward declarations
 class ASE;
@@ -218,6 +219,7 @@ public:
 #ifdef WITH_OBJECT_SYNC
     CObjectSync* GetObjectSync() { return m_pObjectSync; }
 #endif
+    CProjectileSync*                 GetProjectileSync() { return m_pProjectileSync; }
     CConsole*                        GetConsole() { return m_pConsole; }
     CDatabaseManager*                GetDatabaseManager() { return m_pDatabaseManager; }
     CLuaCallbackManager*             GetLuaCallbackManager() { return m_pLuaCallbackManager; }
@@ -541,6 +543,7 @@ private:
 #ifdef WITH_OBJECT_SYNC
     CObjectSync* m_pObjectSync;
 #endif
+    CProjectileSync*           m_pProjectileSync;
     CMarkerManager*            m_pMarkerManager;
     CClock*                    m_pClock;
     CBanManager*               m_pBanManager;

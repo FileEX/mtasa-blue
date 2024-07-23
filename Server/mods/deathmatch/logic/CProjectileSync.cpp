@@ -11,6 +11,8 @@
 
 #include "StdInc.h"
 #include "CProjectileSync.h"
+#include <packets/CProjectileStartSyncPacket.h>
+#include <packets/CProjectileStopSyncPacket.h>
 
 CProjectileSync::CProjectileSync(CPlayerManager* playerManager, CProjectileManager* projectileManager)
     : m_playerManager(playerManager), m_projectileManager(projectileManager)
