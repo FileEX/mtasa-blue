@@ -23,6 +23,7 @@ class CPlayer;
 #include "CObject.h"
 #include "packets/CPacket.h"
 #include "packets/CPlayerStatsPacket.h"
+#include <CProjectile.h>
 class CKeyBinds;
 class CPlayerCamera;
 enum class eVehicleAimDirection : unsigned char;
@@ -165,6 +166,14 @@ public:
     unsigned int                        CountSyncingObjects() { return static_cast<unsigned int>(m_SyncingObjects.size()); };
     std::list<CObject*>::const_iterator IterSyncingObjectBegin() { return m_SyncingObjects.begin(); };
     std::list<CObject*>::const_iterator IterSyncingObjectEnd() { return m_SyncingObjects.end(); };
+
+    void AddSyncingProjectile(CProjectile* projectile);
+    void RemoveSyncingProjectile(CProjectile* projectile);
+    void RemoveAllSyncingProjectiles();
+
+    std::uint32_t CountSyncingProjectiles() { return m_SyncingProjectiles.size(); }
+    std::list<CProjectile*>::const_iterator IterSyncingProjectileBegin() { return m_SyncingProjectiles.begin(); }
+    std::list<CProjectile*>::const_iterator IterSyncingProjectileEnd() { return m_SyncingProjectiles.end(); }
 
     unsigned int GetScriptDebugLevel() { return m_uiScriptDebugLevel; };
     bool         SetScriptDebugLevel(std::uint8_t level);
@@ -386,6 +395,7 @@ private:
     std::list<CVehicle*> m_SyncingVehicles;
     std::list<CPed*>     m_SyncingPeds;
     std::list<CObject*>  m_SyncingObjects;
+    std::list<CProjectile*> m_SyncingProjectiles;
 
     unsigned int m_uiScriptDebugLevel;
 

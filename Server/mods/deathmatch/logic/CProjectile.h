@@ -51,6 +51,12 @@ public:
     void          SetForce(float force) noexcept { m_Force = force; }
     float         GetForce() const noexcept { return m_Force; }
 
+    bool     IsSyncable() const noexcept { return m_syncable; }
+    void     SetSyncable(bool syncable) noexcept { m_syncable = syncable; }
+
+    void     SetSyncer(CPlayer* player) noexcept;
+    CPlayer* GetSyncer() { return m_syncer; }
+
 public:
     std::uint64_t m_CreationTime;
 
@@ -59,6 +65,8 @@ protected:
 
 private:
     CProjectileManager* m_projectileManager;
+    CPlayer*            m_syncer;
+    bool                m_syncable;
 
     CElement* m_Creator;
     CElement* m_TargetEntity;

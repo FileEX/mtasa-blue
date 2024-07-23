@@ -140,6 +140,7 @@ CPlayer::~CPlayer()
     RemoveAllSyncingVehicles();
     RemoveAllSyncingPeds();
     RemoveAllSyncingObjects();
+    RemoveAllSyncingProjectiles();
 
     // Delete the player text manager
     delete m_pPlayerTextManager;
@@ -464,6 +465,45 @@ void CPlayer::RemoveAllSyncingObjects()
     for (; iter != m_SyncingObjects.end(); iter++)
     {
         (*iter)->m_pSyncer = NULL;
+
+        CLuaArguments Arguments;
+        Arguments.PushElement(this);
+        (*iter)->CallEvent("onElementStopSync", Arguments);
+    }
+}
+
+void CPlayer::AddSyncingProjectile(CProjectile* projectile)
+{
+    static bool alreadyIn = false;
+    if (alreadyIn)
+        return;
+
+    alreadyIn = true;
+    projectile->SetSyncer(this);
+    alreadyIn = false;
+
+    m_SyncingProjectiles.push_back(projectile);
+}
+
+void CPlayer::RemoveSyncingProjectile(CProjectile* projectile)
+{
+    static bool alreadyIn = false;
+    if (alreadyIn)
+        return;
+
+    alreadyIn = true;
+    projectile->SetSyncer(nullptr);
+    alreadyIn = false;
+
+    m_SyncingProjectiles.remove(projectile);
+}
+
+void CPlayer::RemoveAllSyncingProjectiles()
+{
+    list<CProjectile*>::const_iterator iter = m_SyncingProjectiles.begin();
+    for (; iter != m_SyncingProjectiles.end(); iter++)
+    {
+        (*iter)->SetSyncer(nullptr);
 
         CLuaArguments Arguments;
         Arguments.PushElement(this);
