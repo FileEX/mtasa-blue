@@ -2874,6 +2874,8 @@ void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
         if (Packet.m_entityID == INVALID_ELEMENT_ID)
             Packet.m_entityID = createdProjectile->GetID();
 
+        createdProjectile->SetParentObject(m_pMapManager->GetRootElement());
+
         // Make a list of players to send this packet to
         CSendList sendList;
 

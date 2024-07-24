@@ -23,7 +23,7 @@ CProjectileSyncPacket::~CProjectileSyncPacket()
 
 bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
 {
-    while (BitStream.GetNumberOfUnreadBits() > 8)
+    while (BitStream.GetNumberOfUnreadBits() > 5)
     {
         SyncData* Data = new SyncData;
 
