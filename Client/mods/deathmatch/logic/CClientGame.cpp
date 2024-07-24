@@ -5354,6 +5354,9 @@ void CClientGame::SendProjectileSync(CClientProjectile* pProjectile)
 
         pBitStream->WriteVector(targetPosition->fX, targetPosition->fY, targetPosition->fZ);
 
+        // Write the special ID for sync purposes
+        pBitStream->Write(static_cast<unsigned long>(pProjectile->m_projectileID));
+
         switch (weaponType)
         {
             case WEAPONTYPE_GRENADE:

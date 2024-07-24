@@ -18,6 +18,7 @@ class CProjectileCreationSyncPacket final : public CPacket
 {
 public:
     CProjectileCreationSyncPacket();
+    ~CProjectileCreationSyncPacket(){};
 
     ePacketID     GetPacketID() const { return PACKET_ID_PROJECTILE; };
     unsigned long GetFlags() const { return PACKET_HIGH_PRIORITY | PACKET_RELIABLE | PACKET_SEQUENCED; };
@@ -36,4 +37,6 @@ public:
     CVector        m_vecMoveSpeed;
     unsigned short m_usModel;
     std::uint32_t  m_Counter;
+    ElementID      m_entityID;
+    unsigned long  m_syncID;
 };

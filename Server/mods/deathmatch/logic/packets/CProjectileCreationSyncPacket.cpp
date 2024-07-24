@@ -17,6 +17,7 @@
 CProjectileCreationSyncPacket::CProjectileCreationSyncPacket()
 {
     m_usModel = 0;
+    m_entityID = INVALID_ELEMENT_ID;
 }
 
 bool CProjectileCreationSyncPacket::Read(NetBitStreamInterface& BitStream)
@@ -56,6 +57,9 @@ bool CProjectileCreationSyncPacket::Read(NetBitStreamInterface& BitStream)
         return false;
 
     if (!BitStream.ReadVector(m_vecTarget.fX, m_vecTarget.fY, m_vecTarget.fZ))
+        return false;
+
+    if (!BitStream.Read(m_syncID))
         return false;
 
     switch (m_ucWeaponType)
@@ -137,6 +141,10 @@ bool CProjectileCreationSyncPacket::Write(NetBitStreamInterface& BitStream) cons
     BitStream.Write(m_Counter);
 
     BitStream.WriteVector(m_vecTarget.fX, m_vecTarget.fY, m_vecTarget.fZ);
+
+    BitStream.Write(m_syncID);
+
+    BitStream.Write(m_entityID);
 
     switch (m_ucWeaponType)
     {

@@ -4851,6 +4851,8 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
     SVelocitySync        velocity;
     SRotationRadiansSync rotation(true);
     std::uint32_t        counter;
+    unsigned long        syncID;
+    ElementID            entityID;
 
     // Read out the velocity
     if (!bitStream.Read(&velocity))
@@ -4868,6 +4870,23 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
     CVector targetVector;
     if (!bitStream.ReadVector(targetVector.fX, targetVector.fY, targetVector.fZ))
         return;
+
+    if (pCreator && pCreator == g_pClientGame->GetLocalPlayer() && !bitStream.Read(syncID))
+        return;
+
+    // Read out the ID
+    if (!bitStream.Read(entityID))
+        return;
+
+    // Don't create projectile again, just set the ID from server
+    if (pCreator && pCreator == g_pClientGame->GetLocalPlayer())
+    {
+        CClientProjectile* projectile = g_pClientGame->GetManager()->GetProjectileManager()->Get(syncID);
+        if (projectile)
+            projectile->SetID(entityID);
+
+        return;
+    }
 
     switch (weaponType)
     {
@@ -4934,6 +4953,8 @@ void CPacketHandler::Packet_ProjectileSync(NetBitStreamInterface& bitStream)
                 g_pClientGame->m_pManager->GetProjectileManager()->Create(pCreator, weaponType, origin.data.vecPosition, fForce, NULL, pTargetEntity);
             if (pProjectile)
             {
+                pProjectile->SetID(entityID);
+
                 pProjectile->Initiate(origin.data.vecPosition, rotation.data.vecRotation, velocity.data.vecVelocity, usModel);
             }
         }

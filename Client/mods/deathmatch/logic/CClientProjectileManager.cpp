@@ -29,6 +29,8 @@ CClientProjectileManager::CClientProjectileManager(CClientManager* pManager)
 
     m_bCreating = false;
     m_pLastCreated = NULL;
+
+    m_projectilesID = 0;
 }
 
 CClientProjectileManager::~CClientProjectileManager()
@@ -103,6 +105,17 @@ CClientProjectile* CClientProjectileManager::Get(ElementID ID)
         return nullptr;
 
     return static_cast<CClientProjectile*>(clientEntity);
+}
+
+CClientProjectile* CClientProjectileManager::Get(std::uint64_t ID)
+{
+    for (auto projectile : m_List)
+    {
+        if (projectile->m_projectileID == ID)
+            return projectile;
+    }
+
+    return nullptr;
 }
 
 void CClientProjectileManager::RemoveFromList(CClientProjectile* pProjectile)
@@ -181,4 +194,9 @@ CClientProjectile* CClientProjectileManager::Create(CClientEntity* pCreator, eWe
     }
     m_bCreating = false;
     return m_pLastCreated;
+}
+
+std::uint64_t CClientProjectileManager::GetFreeSyncID()
+{
+    return m_projectilesID++;
 }

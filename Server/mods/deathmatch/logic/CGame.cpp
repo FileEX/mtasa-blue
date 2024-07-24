@@ -2870,6 +2870,10 @@ void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
         createdProjectile->SetTarget(Packet.m_vecTarget);
         createdProjectile->SetModel(Packet.m_usModel);
 
+        // Assign ID
+        if (Packet.m_entityID == INVALID_ELEMENT_ID)
+            Packet.m_entityID = createdProjectile->GetID();
+
         // Make a list of players to send this packet to
         CSendList sendList;
 
@@ -2880,8 +2884,8 @@ void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
             CPlayer* pSendPlayer = *iter;
 
             // Not the player we got the packet from?
-            if (pSendPlayer != pPlayer)
-            {
+            //if (pSendPlayer != pPlayer)
+            //{
                 // Grab this player's camera position
                 CVector vecCameraPosition;
                 pSendPlayer->GetCamera()->GetPosition(vecCameraPosition);
@@ -2892,7 +2896,7 @@ void CGame::Packet_ProjectileCreationSync(CProjectileCreationSyncPacket& Packet)
                     // Send the packet to him
                     sendList.push_back(pSendPlayer);
                 }
-            }
+            //}
         }
         CPlayerManager::Broadcast(Packet, sendList);
     }

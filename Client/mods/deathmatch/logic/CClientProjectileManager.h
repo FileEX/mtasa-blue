@@ -29,6 +29,7 @@ public:
     bool               Exists(CClientProjectile* pProjectile);
     CClientProjectile* Get(CEntitySAInterface* pProjectile);
     CClientProjectile* Get(ElementID ID);
+    CClientProjectile* Get(std::uint64_t ID);
 
     unsigned int Count() { return static_cast<unsigned int>(m_List.size()); }
 
@@ -41,6 +42,8 @@ public:
     void Hook_ProjectileCreation(CEntity* pGameCreator, CProjectile* pGameProjectile, CProjectileInfo* pProjectileInfo, eWeaponType weaponType, CVector* origin,
                                  float fForce, CVector* target, CEntity* pGameTarget);
     CClientProjectile* Create(CClientEntity* pCreator, eWeaponType eWeapon, CVector& vecOrigin, float fForce, CVector* target, CClientEntity* pTargetEntity);
+
+    std::uint64_t GetFreeSyncID();
 
 protected:
     void AddToList(CClientProjectile* pProjectile) { m_List.push_back(pProjectile); }
@@ -57,4 +60,6 @@ private:
 
     bool                 m_bCreating;
     CClientProjectilePtr m_pLastCreated;
+
+    std::uint64_t m_projectilesID;
 };

@@ -101,6 +101,7 @@ public:
     bool           IsLocal() { return m_bLocal; }
     CClientEntity* GetSatchelAttachedTo();
 
+    std::uint64_t              m_projectileID;
     SLastSyncedProjectileData* m_LastSyncedData;
 protected:
     CClientProjectileManager* m_pProjectileManager;

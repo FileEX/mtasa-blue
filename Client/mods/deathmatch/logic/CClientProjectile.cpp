@@ -51,6 +51,10 @@ CClientProjectile::CClientProjectile(class CClientManager* pManager, CProjectile
     m_pProjectileManager->AddToList(this);
     m_bLinked = true;
 
+    m_LastSyncedData = new SLastSyncedProjectileData;
+
+    m_projectileID = m_pProjectileManager->GetFreeSyncID();
+
     if (pCreator)
     {
         switch (pCreator->GetType())
@@ -104,6 +108,8 @@ CClientProjectile::~CClientProjectile()
 
         m_pProjectile = NULL;
     }
+
+    delete m_LastSyncedData;
 
     CClientEntityRefManager::RemoveEntityRefs(0, &m_pCreator, &m_pTarget, NULL);
 }
