@@ -23,22 +23,22 @@ CProjectileSyncPacket::~CProjectileSyncPacket()
 
 bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
 {
-    while (BitStream.GetNumberOfUnreadBits() > 32)
+    while (BitStream.GetNumberOfUnreadBits() > 8)
     {
-        SyncData Data;
+        SyncData* Data = new SyncData;
 
         // Read out the ID
-        if (!BitStream.Read(Data.ID))
+        if (!BitStream.Read(Data->ID))
             return false;
 
         // Read the sync time context
-        if (!BitStream.Read(Data.syncTimeContext))
+        if (!BitStream.Read(Data->syncTimeContext))
             return false;
 
         std::uint8_t flags = 0;
         if (!BitStream.Read(flags))
             return false;
-        Data.flags = flags;
+        Data->flags = flags;
 
         // Read out the position
         if (flags & 0x1)
@@ -47,7 +47,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&position))
                 return false;
 
-            Data.position = position;
+            Data->position = position;
         }
 
         // Read out the rotation
@@ -57,7 +57,7 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&rotation))
                 return false;
 
-            Data.rotation = rotation;
+            Data->rotation = rotation;
         }
 
         // Read out the velocity
@@ -67,19 +67,21 @@ bool CProjectileSyncPacket::Read(NetBitStreamInterface& BitStream)
             if (!BitStream.Read(&velocity))
                 return false;
 
-            Data.velocity = velocity;
+            Data->velocity = velocity;
         }
 
         // Add it to list
-        m_Syncs.push_back(&Data);
+        m_Syncs.push_back(Data);
     }
 
     return m_Syncs.size() > 0;
 }
 
-bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream)
+bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream) const
 {
-    for (auto iter = IterBegin(); iter != IterEnd(); ++iter)
+    bool sent = false;
+
+    for (auto iter = m_Syncs.begin(); iter != m_Syncs.end(); ++iter)
     {
         SyncData* Data = *iter;
 
@@ -112,7 +114,9 @@ bool CProjectileSyncPacket::Write(NetBitStreamInterface& BitStream)
             SVelocitySync velocity = Data->velocity;
             BitStream.Write(&velocity);
         }
+
+        sent = true;
     }
 
-    return true;
+    return sent;
 }
