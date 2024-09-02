@@ -319,6 +319,8 @@ public:
     virtual bool                              SetWindowOpenFlagState(unsigned char ucWindow, bool bState) = 0;
     virtual float                             GetWheelScale() = 0;
     virtual void                              SetWheelScale(float fWheelScale) = 0;
+    virtual bool                              IsDetachable() const noexcept = 0;
+    virtual void                              SetDetachable(bool detachable) noexcept = 0;
     virtual CAEVehicleAudioEntity*            GetVehicleAudioEntity() = 0;
 
     virtual bool GetDummyPosition(eVehicleDummies dummy, CVector& position) const = 0;

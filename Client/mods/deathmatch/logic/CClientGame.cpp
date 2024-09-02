@@ -460,7 +460,7 @@ CClientGame::~CClientGame()
     g_pMultiplayer->SetBulletImpactHandler(NULL);
     g_pMultiplayer->SetBulletFireHandler(NULL);
     g_pMultiplayer->SetExplosionHandler(NULL);
-    g_pMultiplayer->SetBreakTowLinkHandler(NULL);
+    g_pMultiplayer->SetBreakTowLinkHandler(nullptr);
     g_pMultiplayer->SetDrawRadarAreasHandler(NULL);
     g_pMultiplayer->SetDamageHandler(NULL);
     g_pMultiplayer->SetFireHandler(NULL);
@@ -3506,9 +3506,9 @@ void CClientGame::SetupGlobalLuaEvents()
                        });
 }
 
-bool CClientGame::StaticBreakTowLinkHandler(CVehicle* pTowingVehicle)
+bool __fastcall CClientGame::StaticBreakTowLinkHandler(CVehicleSAInterface* towingVehicleInterface)
 {
-    return g_pClientGame->BreakTowLinkHandler(pTowingVehicle);
+    return g_pClientGame->BreakTowLinkHandler(towingVehicleInterface);
 }
 
 void CClientGame::StaticDrawRadarAreasHandler()
@@ -3754,30 +3754,21 @@ void CClientGame::DrawRadarAreasHandler()
     m_pRadarAreaManager->DoPulse();
 }
 
-bool CClientGame::BreakTowLinkHandler(CVehicle* pTowedVehicle)
+bool CClientGame::BreakTowLinkHandler(CVehicleSAInterface* towedVehicleInterface)
 {
-    CPools*                    pPools = g_pGame->GetPools();
-    SClientEntity<CVehicleSA>* pVehicleClientEntity = pPools->GetVehicle((DWORD*)pTowedVehicle->GetInterface());
-    if (pVehicleClientEntity)
-    {
-        CClientVehicle* pVehicle = reinterpret_cast<CClientVehicle*>(pVehicleClientEntity->pClientEntity);
-        if (pVehicle)
-        {
-            // Check if this is a legal break
-            bool bLegal =
-                ((pVehicle->GetControllingPlayer() == m_pLocalPlayer) || (m_pUnoccupiedVehicleSync->Exists(static_cast<CDeathmatchVehicle*>(pVehicle))));
+    auto* clientVehicleEntity = g_pGame->GetPools()->GetVehicle(reinterpret_cast<DWORD*>(towedVehicleInterface));
+    if (!clientVehicleEntity || !clientVehicleEntity->pClientEntity)
+        return true;
 
-            // Not a legal break?
-            if (!bLegal)
-            {
-                // Save the time it broke (used in UpdateTrailers)
-                pVehicle->SetIllegalTowBreakTime(GetTickCount32());
-            }
-        }
-    }
+    CClientVehicle* vehicle = static_cast<CClientVehicle*>(clientVehicleEntity->pClientEntity);
+    if (!vehicle)
+        return true;
 
-    // Allow it to break
-    return true;
+    // Check if this is a legal break
+    if (!(vehicle->GetControllingPlayer() == m_pLocalPlayer || m_pUnoccupiedVehicleSync->Exists(static_cast<CDeathmatchVehicle*>(vehicle))))
+        vehicle->SetIllegalTowBreakTime(GetTickCount32());
+
+    return vehicle->IsDetachable();
 }
 
 void CClientGame::FireHandler(CFire* pFire)

@@ -402,7 +402,7 @@ ProjectileStopHandler*                     m_pProjectileStopHandler = NULL;
 ProcessCamHandler*                         m_pProcessCamHandler = NULL;
 ChokingHandler*                            m_pChokingHandler = NULL;
 ExplosionHandler*                          m_pExplosionHandler = NULL;
-BreakTowLinkHandler*                       m_pBreakTowLinkHandler = NULL;
+BreakTowLinkHandler*                       m_pBreakTowLinkHandler = nullptr;
 DrawRadarAreasHandler*                     m_pDrawRadarAreasHandler = NULL;
 Render3DStuffHandler*                      m_pRender3DStuffHandler = NULL;
 PreWorldProcessHandler*                    m_pPreWorldProcessHandler = NULL;
@@ -588,7 +588,7 @@ CMultiplayerSA::CMultiplayerSA()
 
     m_bExplosionsDisabled = false;
     m_pExplosionHandler = NULL;
-    m_pBreakTowLinkHandler = NULL;
+    m_pBreakTowLinkHandler = nullptr;
     m_pDrawRadarAreasHandler = NULL;
     m_pDamageHandler = NULL;
     m_pFireHandler = NULL;
@@ -3030,17 +3030,6 @@ no_render:
     }
 }
 
-bool CallBreakTowLinkHandler(CVehicleSAInterface* vehicle)
-{
-    SClientEntity<CVehicleSA>* pVehicleClientEntity = pGameInterface->GetPools()->GetVehicle((DWORD*)vehicle);
-    CVehicle*                  pVehicle = pVehicleClientEntity ? pVehicleClientEntity->pEntity : nullptr;
-    if (pVehicle && m_pBreakTowLinkHandler)
-    {
-        return m_pBreakTowLinkHandler(pVehicle);
-    }
-    return true;
-}
-
 void _declspec(naked) HOOK_CRadar__DrawRadarGangOverlay()
 {
     _asm
@@ -3057,37 +3046,28 @@ void _declspec(naked) HOOK_CRadar__DrawRadarGangOverlay()
     }
 }
 
-CVehicleSAInterface* towingVehicle;
-
+// CVehicle::UpdateTrailerLink
+static constexpr DWORD RETURN_CVehicle_UpdateTrailerLink = 0x6E002D;
 void _declspec(naked) HOOK_Trailer_BreakTowLink()
 {
     _asm
     {
-        mov     towingVehicle, ecx
         pushad
-    }
+        mov ebp, m_pBreakTowLinkHandler
+        test ebp, ebp
+        jz breakTowLink
 
-    if (CallBreakTowLinkHandler(towingVehicle))
-    {
-        _asm
-        {
-            popad
-            call    dword ptr [edx+0xF8]
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-        }
-    }
+        call m_pBreakTowLinkHandler
+        test al, al
+        jnz breakTowLink
 
-    _asm
-    {
-        mov     ecx, HOOKPOS_Trailer_BreakTowLink
-        add     ecx, 6
-        jmp     ecx
+        popad
+        jmp RETURN_CVehicle_UpdateTrailerLink
+
+        breakTowLink:
+        popad
+        call dword ptr [edx+0xF8]
+        jmp RETURN_CVehicle_UpdateTrailerLink
     }
 }
 
@@ -4175,7 +4155,7 @@ void CMultiplayerSA::Reset()
     m_pExplosionHandler = NULL;
     m_pPreContextSwitchHandler = NULL;
     m_pPostContextSwitchHandler = NULL;
-    m_pBreakTowLinkHandler = NULL;
+    m_pBreakTowLinkHandler = nullptr;
     m_pDrawRadarAreasHandler = NULL;
     DisableAllVehicleWeapons(false);
     m_pDamageHandler = NULL;

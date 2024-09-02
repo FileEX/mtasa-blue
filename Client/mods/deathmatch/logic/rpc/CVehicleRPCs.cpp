@@ -52,6 +52,7 @@ void CVehicleRPCs::LoadFunctions()
     AddHandler(REMOVE_VEHICLE_SIRENS, RemoveVehicleSirens, "removeVehicleSirens");
     AddHandler(SET_VEHICLE_SIRENS, SetVehicleSirens, "setVehicleSirens");
     AddHandler(SET_VEHICLE_PLATE_TEXT, SetVehiclePlateText, "setVehiclePlateText");
+    AddHandler(SET_TRAILER_DETACHABLE, SetTrailerDetachable, "setTrailerDetachable");
 }
 
 void CVehicleRPCs::DestroyAllVehicles(NetBitStreamInterface& bitStream)
@@ -652,4 +653,13 @@ void CVehicleRPCs::SetVehiclePlateText(CClientEntity* pSourceEntity, NetBitStrea
             pVehicle->SetRegPlate(strText);
         }
     }
+}
+
+void CVehicleRPCs::SetTrailerDetachable(CClientEntity* sourceEntity, NetBitStreamInterface& bitStream)
+{
+    CClientVehicle* vehicle = m_pVehicleManager->Get(sourceEntity->GetID());
+    if (!vehicle)
+        return;
+
+    vehicle->SetDetachable(bitStream.ReadBit());
 }

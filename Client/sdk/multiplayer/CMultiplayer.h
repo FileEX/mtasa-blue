@@ -90,7 +90,7 @@ typedef bool(ProjectileStopHandler)(class CEntity* owner, enum eWeaponType weapo
                                     class CEntity* targetEntity);
 typedef void(ProjectileHandler)(class CEntity* owner, class CProjectile* projectile, class CProjectileInfo* projectileInfo, enum eWeaponType weaponType,
                                 class CVector* origin, float fForce, class CVector* target, class CEntity* targetEntity);
-typedef bool(BreakTowLinkHandler)(class CVehicle* towingVehicle);
+typedef bool __fastcall BreakTowLinkHandler(class CVehicleSAInterface* towedVehicleInterface);
 typedef bool(ProcessCamHandler)(class CCam* pCam);
 typedef void(DrawRadarAreasHandler)();
 typedef void(Render3DStuffHandler)();

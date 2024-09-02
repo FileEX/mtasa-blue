@@ -170,6 +170,7 @@ CClientVehicle::CClientVehicle(CClientManager* pManager, ElementID ID, unsigned 
     m_fNitroLevel = 1.0f;
     m_cNitroCount = 0;
     m_fWheelScale = 1.0f;
+    m_isDetachable = true;
 
     for (unsigned int i = 0; i < MAX_WINDOWS; ++i)
     {
@@ -2074,6 +2075,19 @@ void CClientVehicle::SetDerailable(bool bDerailable)
     m_bIsDerailable = bDerailable;
 }
 
+bool CClientVehicle::IsDetachable() const noexcept
+{
+    return m_pVehicle ? m_pVehicle->IsDetachable() : m_isDetachable;
+}
+
+void CClientVehicle::SetDetachable(bool detachable) noexcept
+{
+    if (m_pVehicle)
+        m_pVehicle->SetDetachable(detachable);
+
+    m_isDetachable = detachable;
+}
+
 bool CClientVehicle::GetTrainDirection()
 {
     if (m_pVehicle)
@@ -2715,6 +2729,8 @@ void CClientVehicle::Create()
             m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.01f);
             m_pVehicle->SetMoveSpeed(&m_vecMoveSpeed);
         }
+
+        m_pVehicle->SetDetachable(m_isDetachable);
 
         // Validate
         m_pManager->RestoreEntity(this);

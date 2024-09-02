@@ -590,6 +590,9 @@ bool CEntityAddPacket::Write(NetBitStreamInterface& BitStream) const
                     BitStream.WriteBit(pVehicle->GetTrainDirection());
                     BitStream.WriteBit(pVehicle->IsTaxiLightOn());
 
+                    if (BitStream.Can(eBitStreamVersion::SetTrailerDetachable))
+                        BitStream.WriteBit(pVehicle->IsDetachable());
+
                     // Write alpha
                     SEntityAlphaSync alpha;
                     alpha.data.ucAlpha = pVehicle->GetAlpha();

@@ -283,5 +283,7 @@ enum eElementRPCFunctions
 
     SET_MARKER_TARGET_ARROW_PROPERTIES,
 
+    SET_TRAILER_DETACHABLE,
+
     NUM_RPC_FUNCS            // Add above this line
 };

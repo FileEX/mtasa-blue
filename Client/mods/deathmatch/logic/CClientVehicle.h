@@ -422,6 +422,9 @@ public:
 
     bool IsSmokeTrailEnabled();
     void SetSmokeTrailEnabled(bool bEnabled);
+    
+    bool IsDetachable() const noexcept;
+    void SetDetachable(bool detachable) noexcept;
 
     void ResetInterpolation();
 
@@ -671,6 +674,7 @@ protected:
     uchar m_ucTrackID;
     bool  m_bJustStreamedIn;
     bool  m_bWheelScaleChanged;
+    bool  m_isDetachable;
 
     // Time dependent error compensation interpolation
     struct

@@ -499,7 +499,7 @@ private:
     static bool                              StaticDamageHandler(CPed* pDamagePed, CEventDamage* pEvent);
     static void                              StaticDeathHandler(CPed* pKilledPed, unsigned char ucDeathReason, unsigned char ucBodyPart);
     static void                              StaticFireHandler(CFire* pFire);
-    static bool                              StaticBreakTowLinkHandler(CVehicle* pTowedVehicle);
+    static bool __fastcall                   StaticBreakTowLinkHandler(CVehicleSAInterface* towedVehicleInterface);
     static void                              StaticDrawRadarAreasHandler();
     static void                              StaticRender3DStuffHandler();
     static void                              StaticPreRenderSkyHandler();
@@ -549,7 +549,7 @@ private:
     bool                              DamageHandler(CPed* pDamagePed, CEventDamage* pEvent);
     void                              DeathHandler(CPed* pKilledPed, unsigned char ucDeathReason, unsigned char ucBodyPart);
     void                              FireHandler(CFire* pFire);
-    bool                              BreakTowLinkHandler(CVehicle* pTowedVehicle);
+    bool                              BreakTowLinkHandler(CVehicleSAInterface* towedVehicleInterface);
     void                              DrawRadarAreasHandler();
     void                              Render3DStuffHandler();
     void                              PreRenderSkyHandler();

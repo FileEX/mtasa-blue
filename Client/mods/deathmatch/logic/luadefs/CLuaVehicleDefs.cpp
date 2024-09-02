@@ -92,6 +92,7 @@ void CLuaVehicleDefs::LoadFunctions()
         {"getVehicleModelWheelSize", ArgumentParser<GetVehicleModelWheelSize>},
         {"getVehicleWheelFrictionState", ArgumentParser<GetVehicleWheelFrictionState>},
         {"getVehicleEntryPoints", ArgumentParser<GetVehicleEntryPoints>},
+        {"isTrailerDetachable", ArgumentParser<IsTrailerDetachable>},
 
         // Vehicle set funcs
         {"createVehicle", CreateVehicle},
@@ -155,6 +156,7 @@ void CLuaVehicleDefs::LoadFunctions()
         {"setVehicleVariant", ArgumentParser<SetVehicleVariant>},
         {"setVehicleWheelScale", ArgumentParser<SetVehicleWheelScale>},
         {"setVehicleModelWheelSize", ArgumentParser<SetVehicleModelWheelSize>},
+        {"setTrailerDetachable", ArgumentParser<SetTrailerDetachable>},
     };
 
     // Add functions
@@ -243,6 +245,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     lua_classfunction(luaVM, "getModelWheelSize", "getVehicleModelWheelSize");
     lua_classfunction(luaVM, "getWheelFrictionState", "getVehicleWheelFrictionState");
     lua_classfunction(luaVM, "getEntryPoints", ArgumentParser<OOP_GetVehicleEntryPoints>);
+    lua_classfunction(luaVM, "isDetachable", "isTrailerDetachable");
 
     lua_classfunction(luaVM, "setComponentVisible", "setVehicleComponentVisible");
     lua_classfunction(luaVM, "setSirensOn", "setVehicleSirensOn");
@@ -291,6 +294,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     lua_classfunction(luaVM, "setVariant", "setVehicleVariant");
     lua_classfunction(luaVM, "setWheelScale", "setVehicleWheelScale");
     lua_classfunction(luaVM, "setModelWheelSize", "setVehicleModelWheelSize");
+    lua_classfunction(luaVM, "setDetachable", "setTrailerDetachable");
 
     lua_classfunction(luaVM, "resetComponentPosition", "resetVehicleComponentPosition");
     lua_classfunction(luaVM, "resetComponentRotation", "resetVehicleComponentRotation");
@@ -347,6 +351,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     lua_classvariable(luaVM, "gravity", SetVehicleGravity, OOP_GetVehicleGravity);
     lua_classvariable(luaVM, "turnVelocity", SetVehicleTurnVelocity, OOP_GetVehicleTurnVelocity);
     lua_classvariable(luaVM, "wheelScale", "setVehicleWheelScale", "getVehicleWheelScale");
+    lua_classvariable(luaVM, "detachable", "setTrailerDetachable", "isTrailerDetachable");
 
     lua_registerclass(luaVM, "Vehicle", "Element");
 }
@@ -4272,4 +4277,19 @@ std::variant<bool, std::array<CVector, 4>> CLuaVehicleDefs::OOP_GetVehicleEntryP
     }
 
     return entryPoints;
+}
+
+bool CLuaVehicleDefs::IsTrailerDetachable(CClientVehicle* const vehicle)
+{
+    return vehicle->IsDetachable();
+}
+
+bool CLuaVehicleDefs::SetTrailerDetachable(CClientVehicle* const vehicle, bool detachable)
+{
+    eClientVehicleType vehicleType = vehicle->GetVehicleType();
+    if (vehicleType != CLIENTVEHICLE_CAR && vehicleType != CLIENTVEHICLE_TRAILER && vehicleType != CLIENTVEHICLE_QUADBIKE)
+        return false;
+
+    vehicle->SetDetachable(detachable);
+    return true;
 }

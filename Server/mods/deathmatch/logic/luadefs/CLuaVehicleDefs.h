@@ -125,4 +125,7 @@ public:
     LUA_DECLARE(GetVehicleSirens);
     LUA_DECLARE(GetVehicleSirenParams);
     LUA_DECLARE(SetVehiclePlateText);
+
+    static bool IsTrailerDetachable(CVehicle* const vehicle);
+    static bool SetTrailerDetachable(CVehicle* const vehicle, bool detachable);
 };

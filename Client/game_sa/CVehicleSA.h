@@ -410,6 +410,7 @@ private:
     unsigned char                    m_ucVariant2;
     unsigned char                    m_ucVariantCount{0};
     bool                             m_doorsUndamageable{false};
+    bool                             m_isDetachable{true};
 
     std::array<CVector, VEHICLE_DUMMY_COUNT> m_dummyPositions;
 
@@ -665,6 +666,9 @@ public:
     bool                              SetWindowOpenFlagState(unsigned char ucWindow, bool bState);
     float                             GetWheelScale() override { return GetVehicleInterface()->m_fWheelScale; }
     void                              SetWheelScale(float fWheelScale) override { GetVehicleInterface()->m_fWheelScale = fWheelScale; }
+
+    bool IsDetachable() const noexcept { return m_isDetachable; }
+    void SetDetachable(bool detachable) noexcept { m_isDetachable = detachable; }
 
     void UpdateLandingGearPosition();
 

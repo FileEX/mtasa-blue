@@ -314,6 +314,9 @@ public:
     bool GetCollisionEnabled() { return m_bCollisionsEnabled; }
     void SetCollisionEnabled(bool bCollisionEnabled) { m_bCollisionsEnabled = bCollisionEnabled; }
 
+    bool IsDetachable() const noexcept { return m_isDetachable; }
+    void SetDetachable(bool detachable) noexcept { m_isDetachable = detachable; }
+
     // Functions used to remember where this vehicle spawns
     const CVector& GetRespawnPosition() { return m_vecRespawnPosition; };
     const CVector& GetRespawnRotationDegrees() { return m_vecRespawnRotationDegrees; };
@@ -441,6 +444,7 @@ private:
     bool           m_bLandingGearDown;
     unsigned short m_usAdjustableProperty;
     bool           m_bCollisionsEnabled;
+    bool           m_isDetachable;
 
     CHandlingEntry* m_pHandlingEntry;
     bool            m_bHandlingChanged;

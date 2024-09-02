@@ -179,4 +179,7 @@ public:
     LUA_DECLARE(SetVehicleComponentVisible);
     LUA_DECLARE(GetVehicleComponentVisible);
     LUA_DECLARE(GetVehicleComponents);
+
+    static bool IsTrailerDetachable(CClientVehicle* const vehicle);
+    static bool SetTrailerDetachable(CClientVehicle* const vehicle, bool detachable);
 };

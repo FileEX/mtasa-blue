@@ -5242,6 +5242,27 @@ bool CStaticFunctionDefinitions::SetVehiclePlateText(CElement* pElement, const S
     return false;
 }
 
+bool CStaticFunctionDefinitions::SetTrailerDetachable(CElement* const pElement, bool detachable)
+{
+    assert(pElement);
+    RUN_CHILDREN(SetTrailerDetachable(*iter, detachable))
+
+    if (!IS_VEHICLE(pElement))
+        return false;
+
+    CVehicle* vehicle = static_cast<CVehicle*>(pElement);
+    if (!vehicle)
+        return false;
+
+    vehicle->SetDetachable(detachable);
+
+    CBitStream BitStream;
+    BitStream->WriteBit(detachable);
+    m_pPlayerManager->BroadcastOnlyJoined(CElementRPCPacket(vehicle, SET_TRAILER_DETACHABLE, *BitStream.pBitStream));
+
+    return true;
+}
+
 bool CStaticFunctionDefinitions::IsVehicleDamageProof(CVehicle* pVehicle, bool& bDamageProof)
 {
     assert(pVehicle);

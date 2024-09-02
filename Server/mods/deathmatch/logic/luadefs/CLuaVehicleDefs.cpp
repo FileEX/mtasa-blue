@@ -68,6 +68,7 @@ void CLuaVehicleDefs::LoadFunctions()
         {"isVehicleBlown", ArgumentParserWarn<false, IsVehicleBlown>},
         {"getVehicleHeadLightColor", GetVehicleHeadLightColor},
         {"getVehicleDoorOpenRatio", GetVehicleDoorOpenRatio},
+        {"isTrailerDetachable", ArgumentParser<IsTrailerDetachable>},
 
         // Vehicle set funcs
         {"fixVehicle", FixVehicle},
@@ -126,6 +127,7 @@ void CLuaVehicleDefs::LoadFunctions()
         {"getVehicleSirens", GetVehicleSirens},
         {"getVehicleSirenParams", GetVehicleSirenParams},
         {"setVehiclePlateText", SetVehiclePlateText},
+        {"setTrailerDetachable", ArgumentParser<SetTrailerDetachable>},
     };
 
     // Add functions
@@ -207,6 +209,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     lua_classfunction(luaVM, "isRespawnable", "isVehicleRespawnable");
     lua_classfunction(luaVM, "getRespawnDelay", "getVehicleRespawnDelay");
     lua_classfunction(luaVM, "getIdleRespawnDelay", "getVehicleIdleRespawnDelay");
+    lua_classfunction(luaVM, "isDetachable", "isTrailerDetachable");
 
     lua_classfunction(luaVM, "setColor", "setVehicleColor");
     lua_classfunction(luaVM, "setDamageProof", "setVehicleDamageProof");
@@ -241,6 +244,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     // lua_classfunction(luaVM, "setTrack", "setTrainTrack");
     lua_classfunction(luaVM, "setTrainPosition", "setTrainPosition");
     lua_classfunction(luaVM, "setTrainSpeed", "setTrainSpeed");            // Reduce confusion
+    lua_classfunction(luaVM, "setDetachable", "setTrailerDetachable");
 
     lua_classvariable(luaVM, "damageProof", "setVehicleDamageProof", "isVehicleDamageProof");
     lua_classvariable(luaVM, "locked", "setVehicleLocked", "isVehicleLocked");
@@ -283,6 +287,7 @@ void CLuaVehicleDefs::AddClass(lua_State* luaVM)
     lua_classvariable(luaVM, "sirens", NULL, "getVehicleSirens");
     lua_classvariable(luaVM, "handling", nullptr, "getVehicleHandling");
     lua_classvariable(luaVM, "occupant", NULL, "getVehicleOccupant");
+    lua_classvariable(luaVM, "detachable", "setTrailerDetachable", "isTrailerDetachable");
 
     lua_registerclass(luaVM, "Vehicle", "Element");
 }
@@ -2981,4 +2986,18 @@ int CLuaVehicleDefs::SetVehiclePlateText(lua_State* luaVM)
 
     lua_pushboolean(luaVM, false);
     return 1;
+}
+
+bool CLuaVehicleDefs::IsTrailerDetachable(CVehicle* const vehicle)
+{
+    return vehicle->IsDetachable();
+}
+
+bool CLuaVehicleDefs::SetTrailerDetachable(CVehicle* const vehicle, bool detachable)
+{
+    eVehicleType vehicleType = vehicle->GetVehicleType();
+    if (vehicleType != VEHICLE_CAR && vehicleType != VEHICLE_TRAILER && vehicleType != VEHICLE_QUADBIKE)
+        return false;
+
+    return CStaticFunctionDefinitions::SetTrailerDetachable(vehicle, detachable);
 }

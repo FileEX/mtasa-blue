@@ -3471,6 +3471,10 @@ retry:
                     bool bTrainDirection = bitStream.ReadBit();
                     bool bTaxiLightState = bitStream.ReadBit();
 
+                    bool isDetachable = true;
+                    if (bitStream.Can(eBitStreamVersion::SetTrailerDetachable))
+                        isDetachable = bitStream.ReadBit();
+
                     // If the vehicle has a landing gear, set landing gear state
                     if (CClientVehicleManager::HasLandingGears(usModel))
                     {
@@ -3495,6 +3499,8 @@ retry:
                         pVehicle->SetDerailable(bIsDerailable);
                         pVehicle->SetTrainDirection(bTrainDirection);
                     }
+
+                    pVehicle->SetDetachable(isDetachable);
 
                     // Read out and set alpha
                     SEntityAlphaSync alpha;
