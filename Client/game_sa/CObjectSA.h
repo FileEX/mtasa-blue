@@ -153,6 +153,9 @@ public:
     CVector* GetScale();
     void     ResetScale();
 
+    bool SetFramePosition(const std::string& frameName, const CVector& position);
+    bool GetObjectParentToRootMatrix(CMatrix& matrixOut);
+
 private:
     void CheckForGangTag();
 };

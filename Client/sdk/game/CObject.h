@@ -41,4 +41,7 @@ public:
     virtual void     SetScale(float fX, float fY, float fZ) = 0;
     virtual CVector* GetScale() = 0;
     virtual void     ResetScale() = 0;
+
+    virtual bool SetFramePosition(const std::string& frameName, const CVector& position) = 0;
+    virtual bool GetObjectParentToRootMatrix(CMatrix& matrixOut) = 0;
 };

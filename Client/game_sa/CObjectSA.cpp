@@ -304,3 +304,37 @@ void CObjectSA::ResetScale()
 {
     SetScale(1.0f, 1.0f, 1.0f);
 }
+
+bool CObjectSA::SetFramePosition(const std::string& frameName, const CVector& position)
+{
+    RpClump* clump = GetInterface()->m_pRwObject;
+    if (!clump)
+        return false;
+
+    RwFrame* frame = ((RwFrame*(__cdecl*)(RpClump*, const char*))0x4C5400)(clump, frameName.c_str());
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixSetPosition(frame->modelling, position);
+    return true;
+}
+
+bool CObjectSA::GetObjectParentToRootMatrix(CMatrix& matrixOut)
+{
+    RpClump* clump = GetInterface()->m_pRwObject;
+    if (!clump)
+        return false;
+
+    CMatrix newMatrix;
+
+    RwFrame* parentFrame = static_cast<RwFrame*>(clump->object.parent);
+    for (; parentFrame && parentFrame != parentFrame->root; parentFrame = static_cast<RwFrame*>(parentFrame->object.parent))
+    {
+        CMatrix frameMatrix;
+        pGame->GetRenderWareSA()->RwMatrixToCMatrix(parentFrame->modelling, frameMatrix);
+        newMatrix = newMatrix * frameMatrix;
+    }
+
+    matrixOut = newMatrix;
+    return true;
+}

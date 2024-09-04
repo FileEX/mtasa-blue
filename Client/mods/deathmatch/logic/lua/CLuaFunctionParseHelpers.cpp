@@ -910,6 +910,12 @@ ADD_ENUM(PreloadAreaOption::COLLISIONS, "collisions")
 ADD_ENUM(PreloadAreaOption::ALL, "all")
 IMPLEMENT_ENUM_CLASS_END("preload-area-option")
 
+IMPLEMENT_ENUM_CLASS_BEGIN(EFrameBase)
+ADD_ENUM(EFrameBase::ROOT, "root")
+ADD_ENUM(EFrameBase::PARENT, "parent")
+ADD_ENUM(EFrameBase::WORLD, "world")
+IMPLEMENT_ENUM_CLASS_END("frame-base")
+
 //
 // CResource from userdata
 //

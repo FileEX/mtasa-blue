@@ -94,4 +94,12 @@ enum class WorldSpecialProperty
 };
 DECLARE_ENUM_CLASS(WorldSpecialProperty);
 
+enum class EFrameBase
+{
+    WORLD,
+    ROOT,
+    PARENT,
+};
+DECLARE_ENUM_CLASS(EFrameBase);
+
 DECLARE_ENUM(ePacketID);
