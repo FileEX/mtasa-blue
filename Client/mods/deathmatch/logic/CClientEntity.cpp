@@ -589,12 +589,14 @@ static void DumpFrames(RpAtomic* atomic, void* data)
     if (!frame)
         return;
 
+    // Insert frame
     auto* framesList = static_cast<std::map<std::string, SVehicleFrame>*>(data);
     framesList->insert(std::pair<std::string, SVehicleFrame>(std::string(frame->szName), SVehicleFrame(frame, false)));
 }
 
 void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string& frameName)
 {
+    // Dump all frames if it hasn't happened yet
     if (m_modelFrames.empty())
     {
         RpClump* clump = GetClump();
@@ -603,8 +605,7 @@ void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string&
 
         _RpClumpForAllAtomics(clump, DumpFrames, &m_modelFrames);
 
-        auto iter = m_modelFrames.begin();
-        for (; iter != m_modelFrames.end(); ++iter)
+        for (auto iter = m_modelFrames.begin(); iter != m_modelFrames.end(); ++iter)
         {
             SVehicleFrame& modelFrame = iter->second;
             RwFrame*       parentFrame = RwFrameGetParent(modelFrame.pFrame);
@@ -617,23 +618,22 @@ void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string&
         }
     }
 
-    SVehicleFrame* framik = MapFind(m_modelFrames, frameName);
-    if (!framik)
+    // Get frame from array
+    SVehicleFrame* frame = MapFind(m_modelFrames, frameName);
+    if (!frame)
         return;
 
-    CMatrix tempMatrix;
-    for (int i = 0; i < framik->frameList.size(); i++)
+    // Calc all parent frames relative to root
+    CMatrix frameMatrix;
+    for (std::uint16_t i = 0; i < frame->frameList.size(); i++)
     {
-        RwFrame* framsior = framik->frameList[i];
-        if (!framsior)
+        RwFrame* frameParent = frame->frameList[i];
+        if (!frameParent)
             continue;
 
-        CMatrix frameMatrix;
-        g_pGame->GetRenderWare()->RwMatrixToCMatrix(framsior->modelling, frameMatrix);
-        tempMatrix = tempMatrix * frameMatrix;
+        g_pGame->GetRenderWare()->RwMatrixToCMatrix(frameParent->modelling, frameMatrix);
+        matrixOut = matrixOut * frameMatrix;
     }
-
-    matrixOut = tempMatrix;
 }
 
 void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameName, EFrameBase inputBase, EFrameBase outputBase)
@@ -660,6 +660,8 @@ void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameN
                 GetMatrix(parentMatrixToWorld);
                 matrix = matrix * parentMatrixToWorld;
             }
+
+            break;
         }
         case EFrameBase::ROOT:
         {
@@ -677,6 +679,8 @@ void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameN
                 GetMatrix(rootMatrixToWorld);
                 matrix = matrix * rootMatrixToWorld;
             }
+
+            break;
         }
         case EFrameBase::WORLD:
         {
@@ -698,6 +702,8 @@ void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameN
                 GetMatrix(rootMatrixToWorld);
                 matrix = matrix * rootMatrixToWorld.Inverse();
             }
+
+            break;
         }
     }
 }
