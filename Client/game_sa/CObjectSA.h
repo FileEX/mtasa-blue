@@ -155,4 +155,5 @@ public:
 
 private:
     void CheckForGangTag();
+
 };
