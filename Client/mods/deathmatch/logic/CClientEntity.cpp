@@ -9,7 +9,6 @@
  *****************************************************************************/
 
 #include "StdInc.h"
-#include "CClientEntity.h"
 
 using std::list;
 
