@@ -43,6 +43,4 @@ public:
     LUA_DECLARE(ToggleObjectRespawn);
     LUA_DECLARE(SetObjectMass);
     LUA_DECLARE(SetObjectProperty);
-
-    static bool SetObjectFramePosition(CClientObject* const object, const std::string frameName, CVector position, std::optional<EFrameBase> positionBase);
 };

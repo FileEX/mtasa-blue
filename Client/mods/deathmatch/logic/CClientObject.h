@@ -119,8 +119,6 @@ public:
     bool IsBeingRespawned() { return m_bBeingRespawned; };
     void SetBeingRespawned(bool bBeingRespawned) { m_bBeingRespawned = bBeingRespawned; };
 
-    bool SetFramePosition(const std::string& frameName, CVector& position, EFrameBase positionBase);
-
 protected:
     void StreamIn(bool bInstantly);
     void StreamOut();

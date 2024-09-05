@@ -448,6 +448,16 @@ inline RwMatrix* RwFrameGetMatrix(RwFrame* f) {
     return &f->modelling;
 }
 
+inline RwFrame* RwFrameForAllChildren(RwFrame* frame, void* callback, void* data)
+{
+    return ((RwFrame * (__cdecl*)(RwFrame*, void*, void*))0x7F0DC0)(frame, callback, data);
+}
+
+inline RpClump* _RpClumpForAllAtomics(RpClump* clump, void* callback, void* data)
+{
+    return ((RpClump * (__cdecl*)(RpClump*, void*, void*))0x749B70)(clump, callback, data);
+}
+
 inline void _rpAtomicResyncInterpolatedSphere(RpAtomic* atomic) {
     reinterpret_cast<void(__cdecl*)(RpAtomic*)>(0x7491F0)(atomic);
 }

@@ -99,4 +99,18 @@ public:
     LUA_DECLARE(SetElementFrozen);
     static bool SetLowLodElement(lua_State* luaVM, CClientEntity* pEntity, std::optional<CClientEntity*> pLowLodEntity);
     LUA_DECLARE(SetElementCallPropagationEnabled);
+
+    // Frame functions
+    static std::variant<bool, std::vector<std::string>> GetElementModelFrames(CClientEntity* const entity);
+    static std::variant<bool, CLuaMultiReturn<float, float, float>> GetElementModelFramePosition(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base);
+    static std::variant<bool, CLuaMultiReturn<float, float, float>> GetElementModelFrameRotation(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base);
+    static std::variant<bool, CLuaMultiReturn<float, float, float>> GetElementModelFrameScale(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base);
+
+    static bool SetElementModelFramePosition(CClientEntity* const entity, std::string frameName, CVector position, std::optional<EFrameBase> base);
+    static bool SetElementModelFrameRotation(CClientEntity* const entity, std::string frameName, CVector rotation, std::optional<EFrameBase> base);
+    static bool SetElementModelFrameScale(CClientEntity* const entity, std::string frameName, CVector scale, std::optional<EFrameBase> base);
+
+    static bool ResetElementModelFramePosition(CClientEntity* const entity, std::string frameName);
+    static bool ResetElementModelFrameRotation(CClientEntity* const entity, std::string frameName);
+    static bool ResetElementModelFrameScale(CClientEntity* const entity, std::string frameName);
 };

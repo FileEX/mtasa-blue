@@ -147,6 +147,22 @@ enum eCClientEntityClassTypes
     CLASS_CClientBuilding,
 };
 
+struct SDefaultFrameData
+{
+    CVector position;
+    CVector rotation;
+    CVector scale;
+
+    SDefaultFrameData() = default;
+
+    SDefaultFrameData(CVector pos, CVector rot, CVector scal)
+    {
+        position = pos;
+        rotation = rot;
+        scale = scal;
+    }
+};
+
 class CClientEntity : public CClientEntityBase
 {
     DECLARE_BASE_CLASS(CClientEntity)
@@ -212,6 +228,8 @@ public:
 
     virtual bool GetMatrix(CMatrix& matrix) const;
     virtual bool SetMatrix(const CMatrix& matrix);
+    void         GetParentToRootMatrix(CMatrix& outMatrix, const std::string& frameName);
+    virtual void ConvertMatrixBase(CMatrix& matrix, const std::string& frameName, EFrameBase inputBase, EFrameBase outputBase);
 
     virtual void GetPosition(CVector& vecPosition) const = 0;
     void         GetPositionRelative(CClientEntity* pOrigin, CVector& vecPosition) const;
@@ -331,6 +349,19 @@ public:
     bool CanBeDestroyedByScript() { return m_canBeDestroyedByScript; }
     void SetCanBeDestroyedByScript(bool canBeDestroyedByScript) { m_canBeDestroyedByScript = canBeDestroyedByScript; }
 
+    void GetFramesList(std::vector<std::string>& framesList);
+    bool GetFramePosition(const std::string& frameName, CVector& position, EFrameBase base);
+    bool GetFrameRotation(const std::string& frameName, CVector& rotation, EFrameBase base);
+    bool GetFrameScale(const std::string& frameName, CVector& scale, EFrameBase base);
+
+    bool SetFramePosition(const std::string& frameName, CVector& position, EFrameBase base);
+    bool SetFrameRotation(const std::string& frameName, CVector& rotation, EFrameBase base);
+    bool SetFrameScale(const std::string& frameName, CVector& scale, EFrameBase base);
+
+    bool ResetFramePosition(const std::string& frameName);
+    bool ResetFrameRotation(const std::string& frameName);
+    bool ResetFrameScale(const std::string& frameName);
+
 protected:
     CClientManager*         m_pManager;
     CClientEntity*          m_pParent;
@@ -376,6 +407,9 @@ protected:
     bool                              m_bDisallowCollisions;
     bool                              m_canBeDestroyedByScript = true;            // If true, destroyElement function will
                                                                                   // have no effect on this element
+    std::map<std::string, SVehicleFrame> m_modelFrames;
+    std::map<const std::string, SDefaultFrameData> m_framesDefaultData;
+
 public:
     // Optimization for getElementsByType starting at root
     static void StartupEntitiesFromRoot();
@@ -391,4 +425,6 @@ private:
     void        _FindAllChildrenByTypeIndex(unsigned int uiTypeHash, std::map<CClientEntity*, int>& mapResults);
     static void _GetEntitiesFromRoot(unsigned int uiTypeHash, std::map<CClientEntity*, int>& mapResults);
 #endif
+
+    void StoreDefaultFrameData(const std::string& frameName);
 };

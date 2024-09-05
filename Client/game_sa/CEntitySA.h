@@ -328,6 +328,14 @@ public:
     bool GetBonePosition(eBone boneId, CVector& position);
     bool SetBonePosition(eBone boneId, const CVector& position);
 
+    bool GetFramePosition(const std::string& frameName, CVector& position);
+    bool GetFrameRotation(const std::string& frameName, CVector& rotation);
+    bool GetFrameScale(const std::string& frameName, CVector& scale);
+
+    bool SetFramePosition(const std::string& frameName, const CVector& position);
+    bool SetFrameRotation(const std::string& frameName, const CVector& rotation);
+    bool SetFrameScale(const std::string& frameName, const CVector& scale);
+
     // CEntitySA interface
     virtual void OnChangingPosition(const CVector& vecNewPosition) {}
 

@@ -71,6 +71,10 @@ void CLuaElementDefs::LoadFunctions()
         {"isElementLowLOD", IsElementLowLod},
         {"isElementCallPropagationEnabled", IsElementCallPropagationEnabled},
         {"isElementWaitingForGroundToLoad", IsElementWaitingForGroundToLoad},
+        {"getElementModelFrames", ArgumentParser<GetElementModelFrames>},
+        {"getElementModelFramePosition", ArgumentParser<GetElementModelFramePosition>},
+        {"getElementModelFrameRotation", ArgumentParser<GetElementModelFrameRotation>},
+        {"getElementModelFrameScale", ArgumentParser<GetElementModelFrameScale>},
 
         // Element set funcs
         {"createElement", CreateElement},
@@ -99,6 +103,12 @@ void CLuaElementDefs::LoadFunctions()
         {"setElementFrozen", SetElementFrozen},
         {"setLowLODElement", ArgumentParser<SetLowLodElement>},
         {"setElementCallPropagationEnabled", SetElementCallPropagationEnabled},
+        {"setElementModelFramePosition", ArgumentParser<SetElementModelFramePosition>},
+        {"setElementModelFrameRotation", ArgumentParser<SetElementModelFrameRotation>},
+        {"setElementModelFrameScale", ArgumentParser<SetElementModelFrameScale>},
+        {"resetElementModelFramePosition", ArgumentParser<ResetElementModelFramePosition>},
+        {"resetElementModelFrameRotation", ArgumentParser<ResetElementModelFrameRotation>},
+        {"resetElementModelFrameScale", ArgumentParser<ResetElementModelFrameScale>},
     };
 
     // Add functions
@@ -2603,4 +2613,172 @@ int CLuaElementDefs::IsElementWaitingForGroundToLoad(lua_State* luaVM)
 
     lua_pushboolean(luaVM, false);
     return 1;
+}
+
+std::variant<bool, std::vector<std::string>> CLuaElementDefs::GetElementModelFrames(CClientEntity* const entity)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    std::vector<std::string> frames;
+    entity->GetFramesList(frames);
+
+    return frames;
+}
+
+std::variant<bool, CLuaMultiReturn<float, float, float>> CLuaElementDefs::GetElementModelFramePosition(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    CVector position;
+    if (!entity->GetFramePosition(frameName, position, base.value()))
+        return false;
+
+    return CLuaMultiReturn<float, float, float>(position.fX, position.fY, position.fZ);
+}
+
+std::variant<bool, CLuaMultiReturn<float, float, float>> CLuaElementDefs::GetElementModelFrameRotation(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    CVector rotation;
+    if (!entity->GetFrameRotation(frameName, rotation, base.value()))
+        return false;
+
+    ConvertRadiansToDegrees(rotation);
+    return CLuaMultiReturn<float, float, float>(rotation.fX, rotation.fY, rotation.fZ);
+}
+
+std::variant<bool, CLuaMultiReturn<float, float, float>> CLuaElementDefs::GetElementModelFrameScale(CClientEntity* const entity, std::string frameName, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    CVector scale;
+    if (!entity->GetFrameScale(frameName, scale, base.value()))
+        return false;
+
+    return CLuaMultiReturn<float, float, float>(scale.fX, scale.fY, scale.fZ);
+}
+
+bool CLuaElementDefs::SetElementModelFramePosition(CClientEntity* const entity, std::string frameName, CVector position, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    return entity->SetFramePosition(frameName, position, base.value());
+}
+
+bool CLuaElementDefs::SetElementModelFrameRotation(CClientEntity* const entity, std::string frameName, CVector rotation, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    // Convert to radians
+    ConvertDegreesToRadians(rotation);
+    return entity->SetFrameRotation(frameName, rotation, base.value());
+}
+
+bool CLuaElementDefs::SetElementModelFrameScale(CClientEntity* const entity, std::string frameName, CVector scale, std::optional<EFrameBase> base)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    // Set default base
+    if (!base.has_value())
+        base = EFrameBase::ROOT;
+
+    return entity->SetFrameScale(frameName, scale, base.value());
+}
+
+bool CLuaElementDefs::ResetElementModelFramePosition(CClientEntity* const entity, std::string frameName)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    return entity->ResetFramePosition(frameName);
+}
+
+bool CLuaElementDefs::ResetElementModelFrameRotation(CClientEntity* const entity, std::string frameName)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    return entity->ResetFrameRotation(frameName);
+}
+
+bool CLuaElementDefs::ResetElementModelFrameScale(CClientEntity* const entity, std::string frameName)
+{
+    eClientEntityType entityType = entity->GetType();
+    if (entityType != CCLIENTOBJECT && entityType != CCLIENTBUILDING)
+        return false;
+
+    // We don't want to touch the root frame
+    if (frameName.empty())
+        return false;
+
+    return entity->ResetFrameScale(frameName);
 }

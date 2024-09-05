@@ -436,6 +436,9 @@ eEntityStatus CEntitySA::GetEntityStatus()
 
 RwFrame* CEntitySA::GetFrameFromId(int id)
 {
+    if (!m_pInterface->m_pRwObject)
+        return nullptr;
+
     // CClumpModelInfo::GetFrameFromId
     return ((RwFrame*(_cdecl*)(RpClump*, int))0x4C53C0)(m_pInterface->m_pRwObject, id);
 }
@@ -672,4 +675,88 @@ void CEntitySA::SetUnderwater(bool bUnderwater)
 bool CEntitySA::GetUnderwater()
 {
     return m_pInterface->bUnderwater;
+}
+
+bool CEntitySA::GetFramePosition(const std::string& frameName, CVector& position)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixGetPosition(frame->modelling, position);
+    return true;
+}
+
+bool CEntitySA::GetFrameRotation(const std::string& frameName, CVector& rotation)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixGetRotation(frame->modelling, rotation);
+    return true;
+}
+
+bool CEntitySA::GetFrameScale(const std::string& frameName, CVector& scale)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixGetScale(frame->modelling, scale);
+    return true;
+}
+
+bool CEntitySA::SetFramePosition(const std::string& frameName, const CVector& position)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixSetPosition(frame->modelling, position);
+    return true;
+}
+
+bool CEntitySA::SetFrameRotation(const std::string& frameName, const CVector& rotation)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixSetRotation(frame->modelling, rotation);
+    return true;
+}
+
+bool CEntitySA::SetFrameScale(const std::string& frameName, const CVector& scale)
+{
+    RpClump* clump = GetRpClump();
+    if (!clump)
+        return false;
+
+    RwFrame* frame = pGame->GetRenderWareSA()->GetFrameFromName(clump, frameName);
+    if (!frame)
+        return false;
+
+    pGame->GetRenderWareSA()->RwMatrixSetScale(frame->modelling, scale);
+    return true;
 }

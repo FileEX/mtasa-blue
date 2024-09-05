@@ -38,7 +38,6 @@ void CLuaObjectDefs::LoadFunctions()
         {"toggleObjectRespawn", ToggleObjectRespawn},
         {"setObjectMass", SetObjectMass},
         {"setObjectProperty", SetObjectProperty},
-        {"setObjectFramePosition", ArgumentParser<SetObjectFramePosition>},
     };
 
     // Add functions
@@ -721,12 +720,4 @@ bool CLuaObjectDefs::IsObjectRespawnable(CClientEntity* const pEntity) noexcept
         return false;
 
     return pObject->IsRespawnEnabled();
-}
-
-bool CLuaObjectDefs::SetObjectFramePosition(CClientObject* const object, const std::string frameName, CVector position, std::optional<EFrameBase> positionBase)
-{
-    if (frameName.empty())
-        return false;
-
-    return object->SetFramePosition(frameName, position, positionBase.value_or(EFrameBase::ROOT));
 }

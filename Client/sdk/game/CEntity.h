@@ -115,4 +115,12 @@ public:
     virtual bool SetBoneRotation(eBone boneId, float yaw, float pitch, float roll) = 0;
     virtual bool GetBonePosition(eBone boneId, CVector& position) = 0;
     virtual bool SetBonePosition(eBone boneId, const CVector& position) = 0;
+
+    virtual bool GetFramePosition(const std::string& frameName, CVector& position) = 0;
+    virtual bool GetFrameRotation(const std::string& frameName, CVector& rotation) = 0;
+    virtual bool GetFrameScale(const std::string& frameName, CVector& scale) = 0;
+
+    virtual bool SetFramePosition(const std::string& frameName, const CVector& position) = 0;
+    virtual bool SetFrameRotation(const std::string& frameName, const CVector& rotation) = 0;
+    virtual bool SetFrameScale(const std::string& frameName, const CVector& scale) = 0;
 };

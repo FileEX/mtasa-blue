@@ -9,6 +9,7 @@
  *****************************************************************************/
 
 #include "StdInc.h"
+#include "CClientEntity.h"
 
 using std::list;
 
@@ -581,6 +582,125 @@ void CClientEntity::SetPositionRelative(CClientEntity* pOrigin, const CVector& v
     CVector vecOrigin;
     pOrigin->GetPosition(vecOrigin);
     SetPosition(vecOrigin + vecPosition);
+}
+
+static void DumpFrames(RpAtomic* atomic, void* data)
+{
+    RwFrame* frame = static_cast<RwFrame*>(atomic->object.object.parent);
+    if (!frame)
+        return;
+
+    auto* framesList = static_cast<std::map<std::string, SVehicleFrame>*>(data);
+    framesList->insert(std::pair<std::string, SVehicleFrame>(std::string(frame->szName), SVehicleFrame(frame, false)));
+}
+
+void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string& frameName)
+{
+    if (m_modelFrames.empty())
+    {
+        RpClump* clump = GetClump();
+        if (!clump)
+            return;
+
+        _RpClumpForAllAtomics(clump, DumpFrames, &m_modelFrames);
+
+        auto iter = m_modelFrames.begin();
+        for (; iter != m_modelFrames.end(); ++iter)
+        {
+            SVehicleFrame& modelFrame = iter->second;
+            RwFrame*       parentFrame = RwFrameGetParent(modelFrame.pFrame);
+            for (; parentFrame && parentFrame != parentFrame->root; parentFrame = RwFrameGetParent(parentFrame))
+            {
+                SVehicleFrame* realParentFrame = MapFind(m_modelFrames, parentFrame->szName);
+                if (realParentFrame && realParentFrame->pFrame)
+                    modelFrame.frameList.insert(modelFrame.frameList.begin(), realParentFrame->pFrame);
+            }
+        }
+    }
+
+    SVehicleFrame* framik = MapFind(m_modelFrames, frameName);
+    if (!framik)
+        return;
+
+    CMatrix tempMatrix;
+    for (int i = 0; i < framik->frameList.size(); i++)
+    {
+        RwFrame* framsior = framik->frameList[i];
+        if (!framsior)
+            continue;
+
+        CMatrix frameMatrix;
+        g_pGame->GetRenderWare()->RwMatrixToCMatrix(framsior->modelling, frameMatrix);
+        tempMatrix = tempMatrix * frameMatrix;
+    }
+
+    matrixOut = tempMatrix;
+}
+
+void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameName, EFrameBase inputBase, EFrameBase outputBase)
+{
+    switch (inputBase)
+    {
+        case EFrameBase::PARENT:
+        {
+            if (outputBase == EFrameBase::ROOT)
+            {
+                // Parent relative to root
+                CMatrix parentMatrixToRoot;
+                GetParentToRootMatrix(parentMatrixToRoot, frameName);
+                matrix = matrix * parentMatrixToRoot;
+            }
+            else if (outputBase == EFrameBase::WORLD)
+            {
+                // Parent relative to world
+                CMatrix parentMatrixToRoot;
+                GetParentToRootMatrix(parentMatrixToRoot, frameName);
+                matrix = matrix * parentMatrixToRoot;
+
+                CMatrix parentMatrixToWorld;
+                GetMatrix(parentMatrixToWorld);
+                matrix = matrix * parentMatrixToWorld;
+            }
+        }
+        case EFrameBase::ROOT:
+        {
+            if (outputBase == EFrameBase::PARENT)
+            {
+                // Root relative to parent
+                CMatrix rootMatrixToParent;
+                GetParentToRootMatrix(rootMatrixToParent, frameName);
+                matrix = matrix * rootMatrixToParent.Inverse();
+            }
+            else if (outputBase == EFrameBase::WORLD)
+            {
+                // Root relative to world
+                CMatrix rootMatrixToWorld;
+                GetMatrix(rootMatrixToWorld);
+                matrix = matrix * rootMatrixToWorld;
+            }
+        }
+        case EFrameBase::WORLD:
+        {
+            if (outputBase == EFrameBase::PARENT)
+            {
+                // World to parent relative
+                CMatrix worldMatrixToParent;
+                GetMatrix(worldMatrixToParent);
+                matrix = matrix * worldMatrixToParent.Inverse();
+
+                CMatrix parentMatrixToRoot;
+                GetParentToRootMatrix(parentMatrixToRoot, frameName);
+                matrix = matrix * parentMatrixToRoot.Inverse();
+            }
+            else if (outputBase == EFrameBase::ROOT)
+            {
+                // World to root relative
+                CMatrix rootMatrixToWorld;
+                GetMatrix(rootMatrixToWorld);
+                matrix = matrix * rootMatrixToWorld.Inverse();
+            }
+        }
+    }
 }
 
 void CClientEntity::GetRotationRadians(CVector& vecOutRadians) const
@@ -1631,4 +1751,190 @@ CElementListSnapshotRef CClientEntity::GetChildrenListSnapshot()
     }
 
     return m_pChildrenListSnapshot;
+}
+
+static void GetFramesNameCB(RwFrame* frame, void* data)
+{
+    if (!frame)
+        return;
+
+    if (std::strlen(frame->szName) > 0)
+    {
+        // Insert frame name to the array
+        static auto* framesList = static_cast<std::vector<std::string>*>(data);
+        framesList->push_back(std::string(frame->szName));
+
+        // Get frames name for frame childrens
+        RwFrameForAllChildren(frame, GetFramesNameCB, data);
+    }
+}
+
+void CClientEntity::GetFramesList(std::vector<std::string>& framesList)
+{
+    RpClump* clump = GetClump();
+    if (!clump)
+        return;
+
+    RwFrameForAllChildren(static_cast<RwFrame*>(clump->object.parent), GetFramesNameCB, &framesList);
+}
+
+bool CClientEntity::GetFramePosition(const std::string& frameName, CVector& position, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    if (!gameEntity->GetFramePosition(frameName, position))
+        return false;
+
+    // Convert position to relative to base
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(position);
+        ConvertMatrixBase(tempMatrix, frameName, EFrameBase::PARENT, base);
+        position = tempMatrix.GetPosition();
+    }
+
+    return true;
+}
+
+bool CClientEntity::GetFrameRotation(const std::string& frameName, CVector& rotation, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    if (!gameEntity->GetFrameRotation(frameName, rotation))
+        return false;
+
+    // Convert rotation to relative to base
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(CVector(), rotation);
+        ConvertMatrixBase(tempMatrix, frameName, EFrameBase::PARENT, base);
+        rotation = tempMatrix.GetRotation();
+    }
+
+    return true;
+}
+
+bool CClientEntity::GetFrameScale(const std::string& frameName, CVector& scale, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    if (!gameEntity->GetFrameScale(frameName, scale))
+        return false;
+
+    // Convert scale to relative to base
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(CVector(), CVector(), scale);
+        ConvertMatrixBase(tempMatrix, frameName, EFrameBase::PARENT, base);
+        scale = tempMatrix.GetScale();
+    }
+
+    return true;
+}
+
+void CClientEntity::StoreDefaultFrameData(const std::string& frameName)
+{
+    CVector position, rotation, scale;
+    if (GetFramePosition(frameName, position, EFrameBase::PARENT) && GetFrameRotation(frameName, rotation, EFrameBase::PARENT) &&
+        GetFrameScale(frameName, scale, EFrameBase::PARENT))
+        m_framesDefaultData[frameName] = SDefaultFrameData(position, rotation, scale);
+}
+
+bool CClientEntity::SetFramePosition(const std::string& frameName, CVector& position, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    // Convert position to relative to parent
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(position);
+        ConvertMatrixBase(tempMatrix, frameName, base, EFrameBase::PARENT);
+        position = tempMatrix.GetPosition();
+    }
+
+    // store original data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        StoreDefaultFrameData(frameName);
+
+    return gameEntity->SetFramePosition(frameName, position);
+}
+
+bool CClientEntity::SetFrameRotation(const std::string& frameName, CVector& rotation, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    // Convert rotation to relative to parent
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(CVector(), rotation);
+        ConvertMatrixBase(tempMatrix, frameName, base, EFrameBase::PARENT);
+        rotation = tempMatrix.GetRotation();
+    }
+
+    // store original data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        StoreDefaultFrameData(frameName);
+
+    return gameEntity->SetFrameRotation(frameName, rotation);
+}
+
+bool CClientEntity::SetFrameScale(const std::string& frameName, CVector& scale, EFrameBase base)
+{
+    CEntity* gameEntity = GetGameEntity();
+    if (!gameEntity)
+        return false;
+
+    // Convert scale to relative to parent
+    if (base != EFrameBase::PARENT)
+    {
+        CMatrix tempMatrix(CVector(), CVector(), scale);
+        ConvertMatrixBase(tempMatrix, frameName, base, EFrameBase::PARENT);
+        scale = tempMatrix.GetScale();
+    }
+
+    // store original data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        StoreDefaultFrameData(frameName);
+
+    return gameEntity->SetFrameScale(frameName, scale);
+}
+
+bool CClientEntity::ResetFramePosition(const std::string& frameName)
+{
+    // Check whether we store the default data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        return false;
+
+    // Set to default position
+    return SetFramePosition(frameName, m_framesDefaultData[frameName].position, EFrameBase::PARENT);
+}
+
+bool CClientEntity::ResetFrameRotation(const std::string& frameName)
+{
+    // Check whether we store the default data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        return false;
+
+    // Set to default rotation
+    return SetFrameRotation(frameName, m_framesDefaultData[frameName].rotation, EFrameBase::PARENT);
+}
+
+bool CClientEntity::ResetFrameScale(const std::string& frameName)
+{
+    // Check whether we store the default data
+    if (m_framesDefaultData.find(frameName) == m_framesDefaultData.end())
+        return false;
+
+    // Set to default scale
+    return SetFrameScale(frameName, m_framesDefaultData[frameName].scale, EFrameBase::PARENT);
 }
