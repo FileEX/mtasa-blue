@@ -625,6 +625,7 @@ void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string&
 
     // Calc all parent frames relative to root
     CMatrix frameMatrix;
+    CMatrix tempMatrix;
     for (std::uint16_t i = 0; i < frame->frameList.size(); i++)
     {
         RwFrame* frameParent = frame->frameList[i];
@@ -632,8 +633,10 @@ void CClientEntity::GetParentToRootMatrix(CMatrix& matrixOut, const std::string&
             continue;
 
         g_pGame->GetRenderWare()->RwMatrixToCMatrix(frameParent->modelling, frameMatrix);
-        matrixOut = matrixOut * frameMatrix;
+        tempMatrix = tempMatrix * frameMatrix;
     }
+
+    matrixOut = tempMatrix;
 }
 
 void CClientEntity::ConvertMatrixBase(CMatrix& matrix, const std::string& frameName, EFrameBase inputBase, EFrameBase outputBase)
