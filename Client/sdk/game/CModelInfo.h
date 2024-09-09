@@ -189,6 +189,9 @@ public:
     virtual bool IsAlphaTransparencyEnabled() = 0;
     virtual void ResetAlphaTransparency() = 0;
 
+    virtual bool MakeClumpModel() = 0;
+    virtual bool MakeAtomicModel() = 0;
+
     // ONLY use for CVehicleModelInfos
     virtual short        GetAvailableVehicleMod(unsigned short usSlot) = 0;
     virtual bool         IsUpgradeAvailable(eVehicleUpgradePosn posn) = 0;
@@ -217,7 +220,7 @@ public:
     virtual void SetVoice(const char* szVoiceType, const char* szVoice) = 0;
 
     // Custom collision related functions
-    virtual bool SetCustomModel(RpClump* pClump) = 0;
+    virtual bool SetCustomModel(RpClump* clump) = 0;
     virtual void RestoreOriginalModel() = 0;
     virtual void SetColModel(CColModel* pColModel) = 0;
     virtual void RestoreColModel() = 0;

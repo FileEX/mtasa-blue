@@ -99,18 +99,18 @@ void CClientDFF::UnloadDFF()
     m_LoadedClumpInfoMap.clear();
 }
 
-bool CClientDFF::ReplaceModel(unsigned short usModel, bool bAlphaTransparency)
+bool CClientDFF::ReplaceModel(std::uint16_t model, bool alphaTransparency)
 {
     // Record attempt in case it all goes wrong
     CArgMap argMap;
-    argMap.Set("id", usModel);
+    argMap.Set("id", model);
     argMap.Set("reason", "ReplaceModel");
     SetApplicationSetting("diagnostics", "gta-model-fail", argMap.ToString());
 
-    bool bResult = DoReplaceModel(usModel, bAlphaTransparency);
+    bool result = DoReplaceModel(model, alphaTransparency);
 
     SetApplicationSetting("diagnostics", "gta-model-fail", "");
-    return bResult;
+    return result;
 }
 
 bool CClientDFF::LoadFromFile(SString filePath)
@@ -134,65 +134,55 @@ bool CClientDFF::LoadFromBuffer(SString buffer)
     return true;
 }
 
-bool CClientDFF::DoReplaceModel(unsigned short usModel, bool bAlphaTransparency)
+bool CClientDFF::DoReplaceModel(std::uint16_t model, bool alphaTransparency)
 {
-    if (!CClientDFFManager::IsReplacableModel(usModel))
+    // Check if model is replaceable
+    if (!CClientDFFManager::IsReplacableModel(model))
         return false;
 
     // Get clump loaded for this model id
-    RpClump* pClump = GetLoadedClump(usModel);
+    RpClump* clump = GetLoadedClump(model);
+    if (!clump)
+        return false;
 
-    // We have a DFF?
-    if (pClump)
+    // Have someone already replaced that model?
+    // Remove it from its list so it won't restore the object if
+    // it's destroyed or its resource is when it's been replaced
+    // again by an another resource.
+    CClientDFF* replaced = m_pDFFManager->GetElementThatReplaced(model);
+    if (replaced)
+        replaced->m_Replaced.remove(model);
+
+    // Is this a vehicle, ped, marker or object ID?
+    if (CClientVehicleManager::IsValidModel(model))
+        return ReplaceVehicleModel(clump, model, alphaTransparency);
+    else if (CClientPlayerManager::IsValidModel(model))
+        return ReplacePedModel(clump, model, alphaTransparency);
+    else if (CClientMarkerManager::IsMarkerModel(model))
     {
-        // Have someone already replaced that model?
-        CClientDFF* pReplaced = m_pDFFManager->GetElementThatReplaced(usModel);
-        if (pReplaced)
-        {
-            // Remove it from its list so it won't restore the object if
-            // it's destroyed or its resource is when it's been replaced
-            // again by an another resource.
-            pReplaced->m_Replaced.remove(usModel);
-        }
+        bool wasReplaced = ReplaceObjectModel(clump, model, alphaTransparency);
+        // 'Restream' 3D markers
+        if (wasReplaced)
+            g_pClientGame->ReinitMarkers();
 
-        // Is this a vehicle ID?
-        if (CClientVehicleManager::IsValidModel(usModel))
-        {
-            return ReplaceVehicleModel(pClump, usModel, bAlphaTransparency);
-        }
-        else if (CClientPlayerManager::IsValidModel(usModel))
-        {
-            return ReplacePedModel(pClump, usModel, bAlphaTransparency);
-        }
-        else if (CClientMarkerManager::IsMarkerModel(usModel))
-        {
-            bool wasReplaced = ReplaceObjectModel(pClump, usModel, bAlphaTransparency);
-
-            // 'Restream' 3D markers
-            if (wasReplaced)
-                g_pClientGame->ReinitMarkers();
-
-            return wasReplaced;
-        }
-        else if (CClientObjectManager::IsValidModel(usModel))
-        {
-            if (CVehicleUpgrades::IsUpgrade(usModel))
-            {
-                bool bResult = ReplaceObjectModel(pClump, usModel, bAlphaTransparency);
-                // 'Restream' upgrades after model replacement
-                m_pManager->GetVehicleManager()->RestreamVehicleUpgrades(usModel);
-                return bResult;
-            }
-            if (CClientPedManager::IsValidWeaponModel(usModel))
-            {
-                return ReplaceWeaponModel(pClump, usModel, bAlphaTransparency);
-            }
-            return ReplaceObjectModel(pClump, usModel, bAlphaTransparency);
-        }
+        return wasReplaced;
     }
+    else if (CClientObjectManager::IsValidModel(model))
+    {
+        // Is this a vehicle upgrade or weapon ID?
+        if (CVehicleUpgrades::IsUpgrade(model))
+        {
+            bool result = ReplaceObjectModel(clump, model, alphaTransparency);
+            // 'Restream' upgrades after model replacement
+            m_pManager->GetVehicleManager()->RestreamVehicleUpgrades(model);
+            return result;
+        }
+        else if (CClientPedManager::IsValidWeaponModel(model))
+            return ReplaceWeaponModel(clump, model, alphaTransparency);
 
-    // No supported type or no loaded clump
-    return false;
+        // Replace object if this is a object ID
+        return ReplaceObjectModel(clump, model, alphaTransparency);
+    }
 }
 
 bool CClientDFF::HasReplaced(unsigned short usModel)
@@ -296,24 +286,28 @@ void CClientDFF::InternalRestoreModel(unsigned short usModel)
     }
 }
 
-bool CClientDFF::ReplaceObjectModel(RpClump* pClump, ushort usModel, bool bAlphaTransparency)
+bool CClientDFF::ReplaceObjectModel(RpClump* clump, std::uint16_t model, bool alphaTransparency)
 {
     // Stream out all the object models with matching ID.
     // Streamer will stream them back in async after a frame
     // or so.
-    m_pManager->GetObjectManager()->RestreamObjects(usModel);
-    g_pGame->GetModelInfo(usModel)->RestreamIPL();
+    m_pManager->GetObjectManager()->RestreamObjects(model);
+    g_pGame->GetModelInfo(model)->RestreamIPL();
 
     // Grab the model info for that model and replace the model
-    CModelInfo* pModelInfo = g_pGame->GetModelInfo(usModel);
+    CModelInfo* pModelInfo = g_pGame->GetModelInfo(model);
 
-    if (!pModelInfo->SetCustomModel(pClump))
+    // If new model is clump then we need to convert existing model
+    if (clump->object.type == RP_TYPE_CLUMP)
+        pModelInfo->MakeClumpModel();
+
+    if (!pModelInfo->SetCustomModel(clump))
         return false;
 
-    pModelInfo->SetAlphaTransparencyEnabled(bAlphaTransparency);
+    pModelInfo->SetAlphaTransparencyEnabled(alphaTransparency);
 
     // Remember that we've replaced that object model
-    m_Replaced.push_back(usModel);
+    m_Replaced.push_back(model);
 
     // Success
     return true;

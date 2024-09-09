@@ -26,7 +26,7 @@ public:
     LUA_DECLARE(EngineImportTXD);
     LUA_DECLARE(EngineReplaceCOL);
     LUA_DECLARE(EngineRestoreCOL);
-    LUA_DECLARE(EngineReplaceModel);
+    static bool EngineReplaceModel(CClientDFF* dff, std::variant<std::string, std::uint32_t> model, std::optional<bool> alphaTransparency);
     LUA_DECLARE(EngineRestoreModel);
     LUA_DECLARE(EngineRequestModel);
     LUA_DECLARE(EngineFreeModel);

@@ -81,7 +81,7 @@ void CLuaEngineDefs::LoadFunctions()
         {"engineImportTXD", EngineImportTXD},
         {"engineReplaceCOL", EngineReplaceCOL},
         {"engineRestoreCOL", EngineRestoreCOL},
-        {"engineReplaceModel", EngineReplaceModel},
+        {"engineReplaceModel", ArgumentParserWarn<false, EngineReplaceModel>},
         {"engineRestoreModel", EngineRestoreModel},
         {"engineReplaceAnimation", EngineReplaceAnimation},
         {"engineRestoreAnimation", EngineRestoreAnimation},
@@ -790,40 +790,32 @@ bool CLuaEngineDefs::EngineRestoreTXDImage(uint uiModelID)
     return false;
 }
 
-int CLuaEngineDefs::EngineReplaceModel(lua_State* luaVM)
+bool CLuaEngineDefs::EngineReplaceModel(CClientDFF* dff, std::variant<std::string, std::uint32_t> model, std::optional<bool> alphaTransparency)
 {
-    CClientDFF* pDFF;
-    SString     strModelName;
-    bool        bAlphaTransparency;
+    // For backwards compatibility
+    if (std::holds_alternative<std::uint32_t>(model))
+        model = std::to_string(std::get<std::uint32_t>(model));
 
-    CScriptArgReader argStream(luaVM);
-    argStream.ReadUserData(pDFF);
-    argStream.ReadString(strModelName);
-    argStream.ReadBool(bAlphaTransparency, false);
+    // Is it possible?
+    if (!std::holds_alternative<std::string>(model))
+        return false;
 
-    if (!argStream.HasErrors())
+    // Get the real model ID
+    std::uint16_t modelID = CModelNames::ResolveModelID(std::get<std::string>(model));
+    if (modelID == INVALID_MODEL_ID)
+        throw LuaFunctionError("Expected valid model ID or name at argument 2", false);
+
+    // Fixes vehicle dff leak problem with engineReplaceModel
+    m_pDFFManager->RestoreModel(modelID);
+
+    if (!dff->ReplaceModel(modelID, alphaTransparency.value_or(false)))
     {
-        ushort usModelID = CModelNames::ResolveModelID(strModelName);
-        if (usModelID != INVALID_MODEL_ID)
-        {
-            // Fixes vehicle dff leak problem with engineReplaceModel
-            m_pDFFManager->RestoreModel(usModelID);
-            if (pDFF->ReplaceModel(usModelID, bAlphaTransparency))
-            {
-                lua_pushboolean(luaVM, true);
-                return 1;
-            }
-            else
-                argStream.SetCustomError(SString("Model ID %d replace failed", usModelID));
-        }
-        else
-            argStream.SetCustomError("Expected valid model ID or name at argument 2");
+        char errorMsg[32];
+        snprintf(errorMsg, sizeof(errorMsg), "Model %d replace failed");
+        throw LuaFunctionError(errorMsg, false);
     }
-    if (argStream.HasErrors())
-        m_pScriptDebugging->LogCustom(luaVM, argStream.GetFullErrorMessage());
 
-    lua_pushboolean(luaVM, false);
-    return 1;
+    return true;
 }
 
 int CLuaEngineDefs::EngineRestoreModel(lua_State* luaVM)

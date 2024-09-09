@@ -93,6 +93,12 @@ bool CClientModel::Deallocate()
     if (!pModelInfo || !pModelInfo->IsValid())
         return false;
 
+    /* if (m_convertedToClump)
+    {
+        pModelInfo->MakeAtomicModel();
+        m_convertedToClump = false;
+    }*/
+
     if (m_eModelType != eClientModelType::TXD)
     {
         // Remove model info

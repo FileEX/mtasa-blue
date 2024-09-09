@@ -477,50 +477,111 @@ unsigned int CRenderWareSA::LoadAtomics(RpClump* pClump, RpAtomicContainer* pAto
 }
 
 // Replaces all atomics for a specific model
-typedef struct
+struct SAtomicsReplace
 {
-    unsigned short usTxdID;
-    RpClump*       pClump;
-} SAtomicsReplacer;
-bool AtomicsReplacer(RpAtomic* pAtomic, void* data)
-{
-    SAtomicsReplacer* pData = reinterpret_cast<SAtomicsReplacer*>(data);
-    SRelatedModelInfo relatedModelInfo = {0};
-    relatedModelInfo.pClump = pData->pClump;
-    relatedModelInfo.bDeleteOldRwObject = true;
-    CFileLoader_SetRelatedModelInfoCB(pAtomic, &relatedModelInfo);
+    std::uint16_t txdID;
+    RpClump*      clump;
+};
 
-    // The above function adds a reference to the model's TXD by either
-    // calling CAtomicModelInfo::SetAtomic or CDamagableModelInfo::SetDamagedAtomic. Remove it again.
-    CTxdStore_RemoveRef(pData->usTxdID);
+static bool ReplaceAtomicsInModelCB(RpAtomic* atomic, void* data)
+{
+    auto* cbData = reinterpret_cast<SAtomicsReplace*>(data);
+    SRelatedModelInfo relatedModelInfo = {};
+    relatedModelInfo.pClump = cbData->clump;
+    relatedModelInfo.bDeleteOldRwObject = true;
+
+    CFileLoader_SetRelatedModelInfoCB(atomic, &relatedModelInfo);
+
+    // The above function adds a reference to the model's TXD by
+    // calling CDamagableModelInfo::SetDamagedAtomic. Remove it again.
+    CTxdStore_RemoveRef(cbData->txdID);
     return true;
 }
 
-bool CRenderWareSA::ReplaceAllAtomicsInModel(RpClump* pNew, unsigned short usModelID)
+struct SAtomicsClone
 {
-    CModelInfo* pModelInfo = pGame->GetModelInfo(usModelID);
+    std::uint16_t modelID;
+    RpClump*      clump;
+};
 
-    if (pModelInfo)
+static bool CloneAtomicsToClumpCB(RpAtomic* atomic, void* data)
+{
+    auto* cbData = reinterpret_cast<SAtomicsClone*>(data);
+
+    // Clone atomic
+    RpAtomic* clone = RpAtomicClone(atomic);
+    RwFrame*  frame = RpGetFrame(atomic);
+
+    // Set frames
+    RpAtomicSetFrame(clone, frame);
+
+    // Add atomic to new clump
+    RpClumpAddAtomic(cbData->clump, clone);
+
+    RwFrame* oldFrame = RpGetFrame(atomic);
+    RwFrame* newFrame = RwFrameCreate();
+    RpAtomicSetFrame(clone, newFrame);
+    RwFrameCopyMatrix(RpGetFrame(clone), oldFrame);
+    RwFrame* rootFrame = RpGetFrame(cbData->clump);
+    RwFrameAddChild(rootFrame, newFrame);
+
+    // Update atomic ID like in the CFileLoader::SetRelatedModelInfoCB
+    // Call CVisibilityPlugins::SetAtomicId
+    ((int(__cdecl*)(RpAtomic*, std::uint16_t))FUNC_CVisibilityPlugins_SetAtomicId)(clone, cbData->modelID);
+
+    return true;
+}
+
+static bool GetFirstAtomicCB(RpAtomic* atomic, void* data)
+{
+    RpAtomic** firstAtomic = reinterpret_cast<RpAtomic**>(data);
+    if (!*firstAtomic)
+        *firstAtomic = atomic;
+
+    return true;
+}
+
+bool CRenderWareSA::ReplaceAllAtomicsInModel(RpClump* newClump, std::uint16_t modelID, bool isClump)
+{
+    CModelInfo* modelInfo = pGame->GetModelInfo(modelID);
+    if (!modelInfo)
+        return true;
+
+    RpAtomic* oldAtomic = reinterpret_cast<RpAtomic*>(modelInfo->GetRwObject());
+    if (reinterpret_cast<RpClump*>(oldAtomic) == newClump || DoContainTheSameGeometry(newClump, nullptr, oldAtomic))
+        return true;
+
+    // Clone the clump that's to be replaced (CFileLoader_SetRelatedModelInfoCB removes the atomics from the source clump)
+    RpClump* copy = RpClumpClone(newClump);
+
+    // Check if new model is clump or atomic
+    if (isClump)
     {
-        RpAtomic* pOldAtomic = (RpAtomic*)pModelInfo->GetRwObject();
+        SAtomicsClone data = {};
+        data.modelID = modelID;
+        // Get our new clump created in MakeClumpModel
+        data.clump = reinterpret_cast<RpClump*>(modelInfo->GetInterface()->pRwObject);
 
-        if (reinterpret_cast<RpClump*>(pOldAtomic) != pNew && !DoContainTheSameGeometry(pNew, NULL, pOldAtomic))
-        {
-            // Clone the clump that's to be replaced (FUNC_AtomicsReplacer removes the atomics from the source clump)
-            RpClump* pCopy = RpClumpClone(pNew);
+        //RpAtomic* firstAtomic = nullptr;
+        //RpClumpForAllAtomics(data.clump, GetFirstAtomicCB, &firstAtomic);
+        //RpClumpRemoveAtomic(data.clump, firstAtomic);
 
-            // Replace the atomics
-            SAtomicsReplacer data;
-            data.usTxdID = ((CBaseModelInfoSAInterface**)ARRAY_ModelInfo)[usModelID]->usTextureDictionary;
-            data.pClump = pCopy;
-
-            MemPutFast<DWORD>((DWORD*)DWORD_AtomicsReplacerModelID, usModelID);
-            RpClumpForAllAtomics(pCopy, AtomicsReplacer, &data);
-
-            // Get rid of the now empty copied clump
-            RpClumpDestroy(pCopy);
-        }
+        // Clone atomics from new model to our empty clump
+        RpClumpForAllAtomics(copy, CloneAtomicsToClumpCB, &data);
     }
+    else
+    {
+        // Replace the atomics
+        SAtomicsReplace data = {};
+        data.txdID = static_cast<CBaseModelInfoSAInterface**>(ARRAY_ModelInfo)[modelID]->usTextureDictionary;
+        data.clump = copy;
+
+        MemPutFast<DWORD>(reinterpret_cast<DWORD*>(DWORD_AtomicsReplacerModelID), modelID);
+        RpClumpForAllAtomics(copy, ReplaceAtomicsInModelCB, &data);
+    }
+
+    // Destroy empty clump
+    RpClumpDestroy(copy);
 
     return true;
 }

@@ -87,7 +87,7 @@ public:
     virtual void             DestroyTexture(RwTexture* pTex) = 0;
     virtual void             ReplaceCollisions(CColModel* pColModel, unsigned short usModelID) = 0;
     virtual unsigned int     LoadAtomics(RpClump* pClump, RpAtomicContainer* pAtomics) = 0;
-    virtual bool             ReplaceAllAtomicsInModel(RpClump* pSrc, unsigned short usModelID) = 0;
+    virtual bool             ReplaceAllAtomicsInModel(RpClump* newClump, std::uint16_t modelID, bool isClump = false) = 0;
     virtual void             ReplaceAllAtomicsInClump(RpClump* pDst, RpAtomicContainer* pAtomics, unsigned int uiAtomics) = 0;
     virtual void             ReplaceWheels(RpClump* pClump, RpAtomicContainer* pAtomics, unsigned int uiAtomics, const char* szWheel) = 0;
     virtual void             RepositionAtomic(RpClump* pDst, RpClump* pSrc, const char* szName) = 0;

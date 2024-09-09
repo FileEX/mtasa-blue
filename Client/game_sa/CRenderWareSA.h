@@ -61,7 +61,7 @@ public:
     unsigned int LoadAtomics(RpClump* pClump, RpAtomicContainer* pAtomics);
 
     // Replaces all atomics for a specific model
-    bool ReplaceAllAtomicsInModel(RpClump* pSrc, unsigned short usModelID) override;
+    bool ReplaceAllAtomicsInModel(RpClump* newClump, std::uint16_t modelID, bool isClump = false) override;
 
     // Replaces all atomics in a clump
     void ReplaceAllAtomicsInClump(RpClump* pDst, RpAtomicContainer* pAtomics, unsigned int uiAtomics);

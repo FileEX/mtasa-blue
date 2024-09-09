@@ -37,7 +37,7 @@ public:
 
     bool Load(bool isRaw, SString input);
 
-    bool ReplaceModel(unsigned short usModel, bool bAlphaTransparency);
+    bool ReplaceModel(std::uint16_t model, bool alphaTransparency);
 
     bool HasReplaced(unsigned short usModel);
 
@@ -55,11 +55,11 @@ private:
     bool LoadFromFile(SString filePath);
     bool LoadFromBuffer(SString buffer);
 
-    bool DoReplaceModel(unsigned short usModel, bool bAlphaTransparency);
+    bool DoReplaceModel(std::uint16_t model, bool alphaTransparency);
     void UnloadDFF();
     void InternalRestoreModel(unsigned short usModel);
 
-    bool ReplaceObjectModel(RpClump* pClump, ushort usModel, bool bAlphaTransparency);
+    bool ReplaceObjectModel(RpClump* clump, std::uint16_t model, bool alphaTransparency);
     bool ReplaceVehicleModel(RpClump* pClump, ushort usModel, bool bAlphaTransparency);
     bool ReplaceWeaponModel(RpClump* pClump, ushort usModel, bool bAlphaTransparency);
     bool ReplacePedModel(RpClump* pClump, ushort usModel, bool bAlphaTransparency);

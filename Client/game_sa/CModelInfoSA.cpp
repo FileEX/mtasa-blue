@@ -1481,41 +1481,43 @@ void CModelInfoSA::ResetAllVehiclesWheelSizes()
     ms_VehicleModelDefaultWheelSizes.clear();
 }
 
-bool CModelInfoSA::SetCustomModel(RpClump* pClump)
+bool CModelInfoSA::SetCustomModel(RpClump* clump)
 {
-    if (!pClump)
+    if (!clump)
         return false;
 
     if (!IsLoaded())
     {
         // Wait for the game to eventually stream-in the model and then try to replace it (via MakeCustomModel).
-        m_pCustomClump = pClump;
+        m_pCustomClump = clump;
         return true;
     }
 
+    auto modelID = static_cast<std::uint16_t>(m_dwModelID);
     bool success = false;
 
     switch (GetModelType())
     {
         case eModelInfoType::PED:
-            success = pGame->GetRenderWare()->ReplacePedModel(pClump, static_cast<unsigned short>(m_dwModelID));
+            success = pGame->GetRenderWare()->ReplacePedModel(clump, modelID);
             break;
         case eModelInfoType::WEAPON:
-            success = pGame->GetRenderWare()->ReplaceWeaponModel(pClump, static_cast<unsigned short>(m_dwModelID));
+            success = pGame->GetRenderWare()->ReplaceWeaponModel(clump, modelID);
             break;
         case eModelInfoType::VEHICLE:
-            success = pGame->GetRenderWare()->ReplaceVehicleModel(pClump, static_cast<unsigned short>(m_dwModelID));
+            success = pGame->GetRenderWare()->ReplaceVehicleModel(clump, modelID);
             break;
         case eModelInfoType::ATOMIC:
         case eModelInfoType::LOD_ATOMIC:
         case eModelInfoType::TIME:
-            success = pGame->GetRenderWare()->ReplaceAllAtomicsInModel(pClump, static_cast<unsigned short>(m_dwModelID));
+        case eModelInfoType::CLUMP:
+            success = pGame->GetRenderWare()->ReplaceAllAtomicsInModel(clump, modelID, clump->object.type == RP_TYPE_CLUMP);
             break;
         default:
             break;
     }
 
-    m_pCustomClump = success ? pClump : nullptr;
+    m_pCustomClump = success ? clump : nullptr;
     return success;
 }
 
@@ -1776,6 +1778,80 @@ void CModelInfoSA::MakeClumpModel(ushort usBaseID)
 
     m_dwParentID = usBaseID;
     CopyStreamingInfoFromModel(usBaseID);
+}
+
+static bool GetFirstAtomicCB(RpAtomic* atomic, void* data)
+{
+    RpAtomic** firstAtomic = reinterpret_cast<RpAtomic**>(data);
+    if (!*firstAtomic)
+        *firstAtomic = atomic;
+
+    return true;
+}
+
+bool CModelInfoSA::MakeAtomicModel()
+{
+    if (GetModelType() != eModelInfoType::CLUMP)
+        return false;
+
+    // Create new interface
+    CAtomicModelInfoSAInterface* newInterface = new CAtomicModelInfoSAInterface();
+
+    // Copy existing data to the new interface
+    CBaseModelInfoSAInterface* pBaseObjectInfo = ppModelInfo[m_dwModelID];
+    MemCpyFast(newInterface, pBaseObjectInfo, sizeof(CAtomicModelInfoSAInterface));
+
+    RpClump* clump = reinterpret_cast<RpClump*>(GetInterface()->pRwObject);
+    RpAtomic* firstAtomic = nullptr;
+    RpClumpForAllAtomics(clump, GetFirstAtomicCB, &firstAtomic);
+
+    RwFrame* frame = RwFrameCreate();
+    RpAtomic* cloned = RpAtomicClone(firstAtomic);
+    RpSetFrame(cloned, frame);
+
+    newInterface->pRwObject = nullptr;
+
+    // Call CAtomicModelInfo::SetAtomic
+    ((void(__thiscall*)(CAtomicModelInfoSAInterface*, RpAtomic*))FUNC_CAtomicModelInfo_SetAtomic)(newInterface, cloned);
+
+    // Replace interface with new
+    delete ppModelInfo[m_dwModelID];
+    ppModelInfo[m_dwModelID] = newInterface;
+
+    RpClumpDestroy(clump);
+    m_dwParentID = -1;
+    return true;
+}
+
+bool CModelInfoSA::MakeClumpModel()
+{
+    if (GetModelType() != eModelInfoType::ATOMIC)
+        return false;
+
+    // Create new interface
+    CClumpModelInfoSAInterface* newInterface = new CClumpModelInfoSAInterface();
+
+    // Copy existing data to the new interface
+    CBaseModelInfoSAInterface*  pBaseObjectInfo = ppModelInfo[m_dwModelID];
+    MemCpyFast(newInterface, pBaseObjectInfo, sizeof(CClumpModelInfoSAInterface));
+    newInterface->m_nAnimFileIndex = -1;
+
+    // Create new empty clump like CFileLoader::LoadClumpFile
+    RpClump* parentClump = RpClumpCreate();
+    RpSetFrame(parentClump, RwFrameCreate());
+
+    // Set temp atomic to avoid crash because of empty clump
+    //RpClumpAddAtomic(parentClump, reinterpret_cast<RpAtomic*>(pBaseObjectInfo->pRwObject));
+
+    // Call CClumpModelInfo::SetClump
+    ((void(__thiscall*)(CClumpModelInfoSAInterface*, RpClump*))FUNC_CClumpModelInfo_SetClump)(newInterface, parentClump);
+
+    // Replace interface with new
+    delete reinterpret_cast<CBaseModelInfoSAInterface*>(ppModelInfo[m_dwModelID]);
+    ppModelInfo[m_dwModelID] = newInterface;
+
+    m_dwParentID = -1;
+    return true;
 }
 
 void CModelInfoSA::MakeVehicleAutomobile(ushort usBaseID)
