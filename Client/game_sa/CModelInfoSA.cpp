@@ -1834,20 +1834,22 @@ bool CModelInfoSA::MakeClumpModel()
     // Copy existing data to the new interface
     CBaseModelInfoSAInterface*  pBaseObjectInfo = ppModelInfo[m_dwModelID];
     MemCpyFast(newInterface, pBaseObjectInfo, sizeof(CClumpModelInfoSAInterface));
+
+    newInterface->bHasComplexHierarchy = true;
     newInterface->m_nAnimFileIndex = -1;
 
     // Create new empty clump like CFileLoader::LoadClumpFile
-    RpClump* parentClump = RpClumpCreate();
+    RpClump* parentClump = RpClumpCreate(); 
     RpSetFrame(parentClump, RwFrameCreate());
-
-    // Set temp atomic to avoid crash because of empty clump
-    //RpClumpAddAtomic(parentClump, reinterpret_cast<RpAtomic*>(pBaseObjectInfo->pRwObject));
 
     // Call CClumpModelInfo::SetClump
     ((void(__thiscall*)(CClumpModelInfoSAInterface*, RpClump*))FUNC_CClumpModelInfo_SetClump)(newInterface, parentClump);
 
+    // Call CAtomicModelInfo::DeleteRwObject
+    ((void(__thiscall*)(CAtomicModelInfoSAInterface*))FUNC_CAtomicModelInfo_DeleteRwObject)(static_cast<CAtomicModelInfoSAInterface*>(pBaseObjectInfo));
+
     // Replace interface with new
-    delete reinterpret_cast<CBaseModelInfoSAInterface*>(ppModelInfo[m_dwModelID]);
+    delete ppModelInfo[m_dwModelID];
     ppModelInfo[m_dwModelID] = newInterface;
 
     m_dwParentID = -1;

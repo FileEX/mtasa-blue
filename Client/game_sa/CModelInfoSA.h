@@ -64,7 +64,11 @@ static void* ARRAY_ModelInfo = *(void**)(0x403DA4 + 3);
 #define     VAR_CTempColModels_ModelPed1    0x968DF0
 
 #define     FUNC_CClumpModelInfo_SetClump 0x4C4F70
+#define     FUNC_CClumpModelInfo_DeleteRwObject 0x4C4E70
+
 #define     FUNC_CAtomicModelInfo_SetAtomic     0x4C4360
+#define     FUNC_CAtomicModelInfo_DeleteRwObject 0x4C4440
+
 #define     FUNC_CVisibilityPlugins_SetAtomicId 0x732230
 
 class CBaseModelInfoSAInterface;

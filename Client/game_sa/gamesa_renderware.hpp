@@ -90,6 +90,7 @@ void InitRwFunctions()
     RpHAnimHierarchyGetMatrixArray = (RpHAnimHierarchyGetMatrixArray_t)0x7C5120;
     RtQuatRotate = (RtQuatRotate_t)0x7EB7C0;
     RpClumpCreate = reinterpret_cast<RpClumpCreate_t>(0x74A290);
+    RwFrameForAllChildren = reinterpret_cast<RwFrameForAllChildren_t>(0x7F0DC0);
 
     SetTextureDict = (SetTextureDict_t)0x007319C0;
     LoadClumpFile = (LoadClumpFile_t)0x005371F0;
