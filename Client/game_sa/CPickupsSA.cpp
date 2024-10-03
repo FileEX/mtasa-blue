@@ -56,7 +56,7 @@ CPickup* CPickupsSA::CreatePickup(CVector* position, DWORD ModelIndex, ePickupTy
     if (!bFoundFreeSlot)
     {
         FreeSlot = 0;
-        while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->Type != PICKUP_NONE)
+        while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->pickupType != PICKUP_NONE)
         {
             FreeSlot++;
         }
@@ -68,7 +68,7 @@ CPickup* CPickupsSA::CreatePickup(CVector* position, DWORD ModelIndex, ePickupTy
     {
         // Simply use first money pickup.
         FreeSlot = 0;
-        while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->Type != PICKUP_MONEY)
+        while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->pickupType != PICKUP_MONEY)
         {
             FreeSlot++;
         }
@@ -76,8 +76,8 @@ CPickup* CPickupsSA::CreatePickup(CVector* position, DWORD ModelIndex, ePickupTy
         if (FreeSlot >= MAX_PICKUPS)
         {            // In that case use the first PICKUP_ONCE_TIMEOUT
             FreeSlot = 0;
-            while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->Type != PICKUP_ONCE_TIMEOUT &&
-                   Pickups[FreeSlot]->GetInterface()->Type != PICKUP_ONCE_TIMEOUT_SLOW)
+            while (FreeSlot < MAX_PICKUPS && Pickups[FreeSlot]->GetInterface()->pickupType != PICKUP_ONCE_TIMEOUT &&
+                   Pickups[FreeSlot]->GetInterface()->pickupType != PICKUP_ONCE_TIMEOUT_SLOW)
             {
                 FreeSlot++;
             }
@@ -128,7 +128,7 @@ CPickup* CPickupsSA::CreatePickup(CVector* position, DWORD ModelIndex, ePickupTy
     if (Type == PICKUP_NAUTICAL_MINE_INACTIVE || Type == PICKUP_NAUTICAL_MINE_ARMED)
     {
         pickup->SetType(PICKUP_NAUTICAL_MINE_INACTIVE);
-        pickup->GetInterface()->RegenerationTime = pGame->GetSystemTime() + 1500;            // Mines get activated after 2 secs
+        pickup->GetInterface()->regenerationTime = pGame->GetSystemTime() + 1500;            // Mines get activated after 2 secs
     }
     pickup->SetModel((WORD)ModelIndex);
 
@@ -140,8 +140,8 @@ CPickup* CPickupsSA::CreatePickup(CVector* position, DWORD ModelIndex, ePickupTy
 
     pickup->GiveUsAPickUpObject();
 
-    if (pickup->GetInterface()->pObject)
-        ((CWorldSA*)pGame->GetWorld())->Add(pickup->GetInterface()->pObject, CPickup_Constructor);
+    if (pickup->GetInterface()->object)
+        ((CWorldSA*)pGame->GetWorld())->Add(pickup->GetInterface()->object, CPickup_Constructor);
 
     return pickup;
 }
