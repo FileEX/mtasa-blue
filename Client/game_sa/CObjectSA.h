@@ -21,32 +21,36 @@ class CFireSAInterface;
 #define FUNC_CObject_Explode            0x5A1340
 #define FUNC_CGlass_WindowRespondsToCollision 0x71BC40
 
+class CDummyObjectSAInterface : public CEntitySAInterface
+{
+    // Empty
+};
+
 class CObjectInfo
 {
 public:
-    float   fMass;                               // 0
-    float   fTurnMass;                           // 4
-    float   fAirResistance;                      // 8
-    float   fElasticity;                         // 12
-    float   fBuoyancy;                           // 16
-    float   fUprootLimit;                        // 20
-    float   fColDamageMultiplier;                // 24
-    uint8   ucColDamageEffect;                   // 28
-    uint8   ucSpecialColResponseCase;            // 29
-    uint8   ucCameraAvoidObject;                 // 30
-    uint8   ucCausesExplosion;                   // 31
-    uint8   ucFxType;                            // 32
-    uint8   pad1[3];                             // 33
-    CVector vecFxOffset;                         // 36
-    void*   pFxSystem;                           // ret from CParticleData::GetDataFromName // 48
-    float   fSmashMultiplier;                    // 52
-    CVector vecBreakVelocity;                    // 56
-    float   fBreakVelocityRand;                  // 68
-    uint32  uiGunBreakMode;                      // 72
-    uint32  uiSparksOnImpact;                    // 76
+    float         fMass;
+    float         fTurnMass;
+    float         fAirResistance;
+    float         fElasticity;
+    float         fBuoyancy;
+    float         fUprootLimit;
+    float         fColDamageMultiplier;
+    std::uint8_t  ucColDamageEffect;
+    std::uint8_t  ucSpecialColResponseCase;
+    std::uint8_t  ucCameraAvoidObject;
+    std::uint8_t  ucCausesExplosion;
+    std::uint8_t  ucFxType;
+    std::uint8_t  pad1[3];
+    CVector       vecFxOffset;
+    void*         pFxSystem;            // from CParticleData::GetDataFromName FxSystemBP
+    float         fSmashMultiplier;
+    CVector       vecBreakVelocity;
+    float         fBreakVelocityRand;
+    std::uint32_t uiGunBreakMode;
+    std::uint32_t uiSparksOnImpact;
 };
-// TODO: Find out correct size
-// static_assert(sizeof(CObjectInfo) == 0x50, "Invalid size for CObjectInfo");
+static_assert(sizeof(CObjectInfo) == 0x50, "Invalid size for CObjectInfo");
 
 class CObjectSAInterface : public CPhysicalSAInterface
 {
@@ -116,11 +120,35 @@ public:
     std::int16_t                   scriptTriggerIndex;
     std::int16_t                   remapTxd;                     // used for detached car parts
     RwTexture*                     remapTexture;                 // used for detached car parts
-    CEntitySAInterface*            linkedObjectDummy;            // CDummyObject - Is used for dynamic objects like garage doors, train crossings etc.
+    CDummyObjectSAInterface*       linkedObjectDummy;            // used for dynamic objects like garage doors, train crossings etc.
     std::uint32_t                  timeToRemoveParticles;
     float                          particlesIntensity;
 };
 static_assert(sizeof(CObjectSAInterface) == 0x17C, "Invalid size for CObjectSAInterface");
+
+class CCutsceneObjectSAInterface : public CObjectSAInterface
+{
+    union
+    {
+        RwFrame*      attachToFrame;
+        std::uint32_t attachToBone;            //  this one if attachToObject != 0
+    };
+
+    CObjectSAInterface* attachToObject;
+    CVector             worldPosition;
+    CVector             force;
+};
+static_assert(sizeof(CCutsceneObjectSAInterface) == 0x19C, "Invalid size for CCutsceneObjectSAInterface");
+
+class CHandObjectSAInterface : public CObjectSAInterface
+{
+    CPedSAInterface* ped;
+    std::uint32_t    boneIndex;
+    RwTexture*       texture;
+    bool             updateMarticesArray;
+    std::uint8_t     field_189[3];
+};
+static_assert(sizeof(CHandObjectSAInterface) == 0x18C, "Invalid size for CHandObjectSAInterface");
 
 class CObjectSA : public virtual CObject, public virtual CPhysicalSA
 {
