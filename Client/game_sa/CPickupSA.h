@@ -23,32 +23,43 @@ class CObjectSA;
 class CPickupSAInterface
 {
 public:
-    float               CurrentValue;                      // For the revenue pickups  0
-    CObjectSAInterface* pObject;                           // 4
-    long                MonetaryValue;                     // 8
-    DWORD               RegenerationTime;                  // 12
-    short               CoorsX, CoorsY, CoorsZ;            // 16 // 18 // 20
-    WORD                MoneyPerDay;                       // 22
-    WORD                MI;                                // 24
-    WORD                ReferenceIndex;                    // 26
-    BYTE                Type;                              // 28
-    BYTE                State : 1;                         // 29
-    BYTE                bNoAmmo : 1;
-    BYTE                bHelpMessageDisplayed : 1;
-    BYTE                bIsPickupNearby : 1;            // If the pickup is nearby it will get an object and it will get updated.
-    BYTE                TextIndex : 3;                  // What text label do we print out above it.
+    float               currentValue;            // For the revenue pickups
+    CObjectSAInterface* object;
+    std::uint32_t       monetaryValue;
+    std::uint32_t       regenerationTime;
+    std::int16_t        coorsX, coorsY, coorsZ;            // CCompressedVector
+    std::uint16_t       moneyPerDay;
+    std::int16_t        modelID;
+    std::int16_t        referenceIndex;
+    ePickupType         pickupType;
+    ePickupState        pickupState;
+
+    union
+    {
+        struct
+        {
+            // 'disabled' flag is replaced by pickupState
+            std::uint8_t noAmmo : 1;
+            std::uint8_t helpMessageDisplayed : 1;
+            std::uint8_t isPickupNearby : 1;            // If the pickup is nearby it will get an object and it will get updated.
+            std::uint8_t textIndex : 3;                 // What text label do we print out above it.
+        };
+
+        std::uint8_t flags;
+    };
 };
+static_assert(sizeof(CPickupSAInterface) == 0x20, "Invalid size for CPickupSAInterface");
 
 class CPickupSA : public CPickup
 {
 private:
-    CPickupSAInterface* internalInterface;
-    CObjectSA*          object;
+    CPickupSAInterface* m_internalInterface;
+    CObjectSA*          m_object;
 
 public:
     CPickupSA(CPickupSAInterface* pickupInterface);
-    CPickupSAInterface* GetInterface() { return internalInterface; };            // not to be exported
-    CObject*            GetObject() { return object; };
+    CPickupSAInterface* GetInterface() noexcept { return m_internalInterface; }
+    CObject*            GetObject() noexcept { return m_object; }
 
     void     SetPosition(CVector* vecPosition);
     CVector* GetPosition(CVector* vecPosition);

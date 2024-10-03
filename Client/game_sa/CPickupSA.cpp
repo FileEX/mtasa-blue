@@ -18,113 +18,113 @@ extern CGameSA* pGame;
 
 CPickupSA::CPickupSA(CPickupSAInterface* pickupInterface)
 {
-    internalInterface = pickupInterface;
-    object = 0;
+    m_internalInterface = pickupInterface;
+    m_object = 0;
 }
 
 void CPickupSA::SetPosition(CVector* vecPosition)
 {
-    GetInterface()->bIsPickupNearby = 0;
+    GetInterface()->isPickupNearby = false;
 
     CPickupSAInterface* iPickup = GetInterface();
-    iPickup->CoorsX = (short)(vecPosition->fX * 8);
-    iPickup->CoorsY = (short)(vecPosition->fY * 8);
-    iPickup->CoorsZ = (short)(vecPosition->fZ * 8);
+    iPickup->coorsX = static_cast<std::int16_t>((vecPosition->fX * 8.0f));
+    iPickup->coorsY = static_cast<std::int16_t>((vecPosition->fY * 8.0f));
+    iPickup->coorsZ = static_cast<std::int16_t>((vecPosition->fZ * 8.0f));
 }
 
 CVector* CPickupSA::GetPosition(CVector* vecPosition)
 {
     CPickupSAInterface* iPickup = GetInterface();
-    vecPosition->fX = iPickup->CoorsX / 8.0f;
-    vecPosition->fY = iPickup->CoorsY / 8.0f;
-    vecPosition->fZ = iPickup->CoorsZ / 8.0f;
+    vecPosition->fX = iPickup->coorsX / 8.0f;
+    vecPosition->fY = iPickup->coorsY / 8.0f;
+    vecPosition->fZ = iPickup->coorsZ / 8.0f;
     return vecPosition;
 }
 
 ePickupType CPickupSA::GetType()
 {
-    return (ePickupType)GetInterface()->Type;
+    return GetInterface()->pickupType;
 }
 
 void CPickupSA::SetType(ePickupType type)
 {
-    GetInterface()->Type = type;
+    GetInterface()->pickupType = type;
 }
 
 float CPickupSA::GetCurrentValue()
 {
-    return GetInterface()->CurrentValue;
+    return GetInterface()->currentValue;
 }
 
 void CPickupSA::SetCurrentValue(float fCurrentValue)
 {
-    GetInterface()->CurrentValue = fCurrentValue;
+    GetInterface()->currentValue = fCurrentValue;
 }
 
 void CPickupSA::SetRegenerationTime(DWORD dwTime)
 {
-    GetInterface()->RegenerationTime = dwTime;
+    GetInterface()->regenerationTime = dwTime;
 }
 
 void CPickupSA::SetMoneyPerDay(WORD wMoneyPerDay)
 {
-    GetInterface()->MoneyPerDay = wMoneyPerDay;
+    GetInterface()->moneyPerDay = wMoneyPerDay;
 }
 
 WORD CPickupSA::GetMoneyPerDay()
 {
-    return GetInterface()->MoneyPerDay;
+    return GetInterface()->moneyPerDay;
 }
 
 WORD CPickupSA::GetModel()
 {
-    return GetInterface()->MI;
+    return GetInterface()->modelID;
 }
 
 void CPickupSA::SetModel(WORD wModelIndex)
 {
-    GetInterface()->MI = wModelIndex;
+    GetInterface()->modelID = wModelIndex;
 }
 
 ePickupState CPickupSA::GetState()
 {
-    return (ePickupState)GetInterface()->State;
+    return GetInterface()->pickupState;
 }
 
 void CPickupSA::SetState(ePickupState bState)
 {
-    GetInterface()->State = (BYTE)bState;
+    GetInterface()->pickupState = bState;
 }
 
 BYTE CPickupSA::GetAmmo()
 {
-    return GetInterface()->bNoAmmo;
+    return GetInterface()->noAmmo;
 }
 
 void CPickupSA::SetAmmo(BYTE bAmmo)
 {
-    GetInterface()->bNoAmmo = bAmmo;
+    GetInterface()->noAmmo = bAmmo;
 }
 
 long CPickupSA::GetMonetaryValue()
 {
-    return GetInterface()->MonetaryValue;
+    return GetInterface()->monetaryValue;
 }
 
 void CPickupSA::SetMonetaryValue(long lMonetaryValue)
 {
-    GetInterface()->MonetaryValue = lMonetaryValue;
+    GetInterface()->monetaryValue = lMonetaryValue;
 }
 
 BYTE CPickupSA::IsNearby()
 {
-    return GetInterface()->bIsPickupNearby;
+    return GetInterface()->isPickupNearby;
 }
 
 void CPickupSA::GiveUsAPickUpObject(int ForcedObjectIndex)
 {
     DWORD GiveUsAPickUpObject = FUNC_GIVEUSAPICKUP;
-    DWORD dwObject = (DWORD) & (GetInterface()->pObject);
+    DWORD dwObject = (DWORD) & (GetInterface()->object);
     DWORD dwThis = (DWORD)GetInterface();
     _asm
     {
@@ -133,28 +133,28 @@ void CPickupSA::GiveUsAPickUpObject(int ForcedObjectIndex)
         mov     ecx, dwThis
         call    GiveUsAPickUpObject
     }
-    if (GetInterface()->pObject)
+    if (GetInterface()->object)
     {
-        if (object)
+        if (m_object)
         {
-            ((CEntitySA*)object)->DoNotRemoveFromGame = true;
-            delete object;
+            ((CEntitySA*)m_object)->DoNotRemoveFromGame = true;
+            delete m_object;
         }
 
-        object = new CObjectSA(GetInterface()->pObject);
+        m_object = new CObjectSA(GetInterface()->object);
     }
 }
 
 void CPickupSA::GetRidOfObjects()
 {
-    if (GetInterface()->pObject)
-        ((CWorldSA*)pGame->GetWorld())->Remove(GetInterface()->pObject, CPickup_Destructor);
+    if (GetInterface()->object)
+        ((CWorldSA*)pGame->GetWorld())->Remove(GetInterface()->object, CPickup_Destructor);
 
-    if (object)
+    if (m_object)
     {
-        ((CEntitySA*)object)->DoNotRemoveFromGame = true;
-        delete object;
-        object = NULL;
+        ((CEntitySA*)m_object)->DoNotRemoveFromGame = true;
+        delete m_object;
+        m_object = nullptr;
     }
 }
 
@@ -169,10 +169,10 @@ void CPickupSA::Remove()
     }
 
     // CPickup::Remove also destroys the owned object, so we need to delete our CObjectSA class
-    if (object)
+    if (m_object)
     {
-        ((CEntitySA*)object)->DoNotRemoveFromGame = true;
-        delete object;
-        object = NULL;
+        ((CEntitySA*)m_object)->DoNotRemoveFromGame = true;
+        delete m_object;
+        m_object = nullptr;
     }
 }

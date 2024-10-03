@@ -865,13 +865,13 @@ enum eMarkerColor
     MARKER_COLOR_DARK_TURQUOISE,
 };
 
-enum ePickupState
+enum ePickupState : std::uint8_t
 {
     PUSTATE_ON,
     PUSTATE_OFF
 };
 
-enum ePickupType
+enum ePickupType : std::uint8_t
 {
     PICKUP_NONE,
     PICKUP_IN_SHOP,
