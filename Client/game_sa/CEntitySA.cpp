@@ -133,7 +133,7 @@ void CEntitySA::SetPosition(float fX, float fY, float fZ)
     }
     if (m_pInterface->nType == ENTITY_TYPE_OBJECT)
     {
-        ((CObjectSAInterface*)m_pInterface)->bUpdateScale = true;
+        ((CObjectSAInterface*)m_pInterface)->isScaled = true;
     }
 }
 
@@ -243,7 +243,7 @@ void CEntitySA::SetOrientation(float fX, float fY, float fZ)
 
     if (m_pInterface->nType == ENTITY_TYPE_OBJECT)
     {
-        ((CObjectSAInterface*)m_pInterface)->bUpdateScale = true;
+        ((CObjectSAInterface*)m_pInterface)->isScaled = true;
     }
 
     pGame->GetWorld()->Add(this, CEntity_SetOrientation);
@@ -393,7 +393,7 @@ void CEntitySA::SetMatrix(CMatrix* matrix)
 
         if (m_pInterface->nType == ENTITY_TYPE_OBJECT)
         {
-            ((CObjectSAInterface*)m_pInterface)->bUpdateScale = true;
+            ((CObjectSAInterface*)m_pInterface)->isScaled = true;
         }
 
         pGame->GetWorld()->Add(this, CEntity_SetMatrix);

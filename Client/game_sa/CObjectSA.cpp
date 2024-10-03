@@ -221,12 +221,12 @@ void CObjectSA::Break()
 
 void CObjectSA::SetHealth(float fHealth)
 {
-    static_cast<CObjectSAInterface*>(GetInterface())->fHealth = fHealth;
+    static_cast<CObjectSAInterface*>(GetInterface())->health = fHealth;
 }
 
 float CObjectSA::GetHealth()
 {
-    return static_cast<CObjectSAInterface*>(GetInterface())->fHealth;
+    return static_cast<CObjectSAInterface*>(GetInterface())->health;
 }
 
 void CObjectSA::SetModelIndex(unsigned long ulModel)
@@ -291,8 +291,8 @@ bool CObjectSA::IsGlass()
 void CObjectSA::SetScale(float fX, float fY, float fZ)
 {
     m_vecScale = CVector(fX, fY, fZ);
-    GetObjectInterface()->bUpdateScale = true;
-    GetObjectInterface()->fScale = std::max(fX, std::max(fY, fZ));
+    GetObjectInterface()->isScaled = true;
+    GetObjectInterface()->scale = std::max(fX, std::max(fY, fZ));
 }
 
 CVector* CObjectSA::GetScale()

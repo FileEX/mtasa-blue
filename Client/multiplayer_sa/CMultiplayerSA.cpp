@@ -7265,10 +7265,10 @@ void PostCWorld_ProcessPedsAfterPreRender()
         auto objectInterface = objectEntity->GetObjectInterface();
         if (objectInterface && objectEntity->GetPreRenderRequired())
         {
-            if (objectInterface->fScale != 1.0f || objectInterface->bUpdateScale)
+            if (objectInterface->scale != 1.0f || objectInterface->isScaled)
             {
                 objectEntity->SetScaleInternal(*objectEntity->GetScale());
-                objectInterface->bUpdateScale = false;
+                objectInterface->isScaled = false;
             }
             RpClump* clump = objectInterface->m_pRwObject;
             if (clump && clump->object.type == RP_TYPE_CLUMP)

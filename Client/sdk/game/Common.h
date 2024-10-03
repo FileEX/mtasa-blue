@@ -1431,6 +1431,41 @@ enum class eResizableVehicleWheelGroup
     ALL_WHEELS = 0xFF,
 };
 
+enum class eObjectType : std::uint8_t
+{
+    UNKNOWN = 0,
+    GAME_OBJECT,
+    MISSION_OBJECT,
+    TEMP_OBJECT, // used for flying components
+    CUTSCENE_OBJECT,
+    DECORATION_OBJECT, // projectiles, water creatures, escalator step, hand objects etc
+    MISSION2_OBJECT,
+};
+
+enum class eObjectColDamageEffect : std::uint8_t
+{
+    NONE = 0,
+    CHANGE_MODEL = 1,
+    SMASH_COMPLETELY = 20,
+    CHANGE_THEN_SMASH = 21,
+    BREAKABLE = 200,
+    BREAKABLE_FOR_EVER = 202, // never regenerated
+};
+
+enum class eObjectSpecialColResponseCases : std::uint8_t
+{
+    NONE = 0,
+    LAMPPOST,
+    SMALLBOX,
+    BIGBOX,
+    FENCEPART,
+    GRENADE,
+    SWINGDOOR,
+    LOCKDOOR,
+    HANGING,
+    POOLBALL,
+};
+
 enum eObjectProperty
 {
     OBJECT_PROPERTY_ALL,

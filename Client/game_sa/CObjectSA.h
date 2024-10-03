@@ -13,6 +13,7 @@
 
 #include <game/CObject.h>
 #include "CPhysicalSA.h"
+#include "CColPointSA.h"
 
 class CFireSAInterface;
 
@@ -50,71 +51,74 @@ public:
 class CObjectSAInterface : public CPhysicalSAInterface
 {
 public:
-    void*  pObjectList;            // 312
-    uint8  pad1;                   // 316
-    uint8  pad2;                   // 317
-    uint16 pad3;                   // 318
+    void*         pObjectList;
+    eObjectType   objectType;
+    std::uint8_t  bonusValue;
+    std::uint16_t costValue;
 
-    // flags
-    uint32 b0x01 : 1;            // 320
-    uint32 b0x02 : 1;
-    uint32 b0x04 : 1;
-    uint32 b0x08 : 1;
-    uint32 b0x10 : 1;
-    uint32 b0x20 : 1;
-    uint32 bExploded : 1;
-    uint32 b0x80 : 1;
+    union
+    {
+        struct
+        {
+            std::uint32_t isPickup : 1;
+            std::uint32_t unknown_0x2 : 1;            // Using in 0x475C6B, probably something related to collisions
+            std::uint32_t pickupPropertyForSale : 1;
+            std::uint32_t pickupInShopOutOfStock : 1;
+            std::uint32_t hasBrokenGlass : 1;
+            std::uint32_t glassBrokenAllTogether : 1;
+            std::uint32_t isExploded : 1;
+            std::uint32_t changesVehColor : 1;
 
-    uint32 b0x100 : 1;            // 321
-    uint32 b0x200 : 1;
-    uint32 b0x400 : 1;
-    uint32 bIsTrainNearCrossing : 1;            // Train crossing will be opened if flag is set (distance < 120.0f)
-    uint32 b0x1000 : 1;
-    uint32 b0x2000 : 1;
-    uint32 bIsDoorMoving : 1;
-    uint32 bIsDoorOpen : 1;
+            std::uint32_t isLampPost : 1;
+            std::uint32_t isTargetable : 1;
+            std::uint32_t isBroken : 1;
+            std::uint32_t trainCrossEnabled : 1;            // Train crossing will be opened if flag is set (distance < 120.0f)
+            std::uint32_t isPhotographed : 1;
+            std::uint32_t isLiftable : 1;
+            std::uint32_t isDoorMoving : 1;
+            std::uint32_t isDoorOpen : 1;
 
-    uint32 b0x10000 : 1;            // 322
-    uint32 bUpdateScale : 1;
-    uint32 b0x40000 : 1;
-    uint32 b0x80000 : 1;
-    uint32 b0x100000 : 1;
-    uint32 b0x200000 : 1;
-    uint32 b0x400000 : 1;
-    uint32 b0x800000 : 1;
+            std::uint32_t hasNoModel : 1;
+            std::uint32_t isScaled : 1;
+            std::uint32_t canBeAttachedToMagnet : 1;
+            std::uint32_t isDamaged : 1;
+            std::uint32_t unknown_scripts : 2;            // something for scripts
+            std::uint32_t fadingIn : 1;                   // works only for objects with type MISSION_OBJECT
+            std::uint32_t affectedByColBrightness : 1;
 
-    uint32 b0x1000000 : 1;            // 323
-    uint32 b0x2000000 : 1;
-    uint32 b0x4000000 : 1;
-    uint32 b0x8000000 : 1;
-    uint32 b0x10000000 : 1;
-    uint32 b0x20000000 : 1;
-    uint32 b0x40000000 : 1;
-    uint32 b0x80000000 : 1;
+            std::uint32_t enableDisabledAttractors : 1;
+            std::uint32_t doNotRender : 1;
+            std::uint32_t fadingIn2 : 1;
+            std::uint32_t unknown_b4_3 : 1;
+            std::uint32_t unknown_b4_4 : 1;
+            std::uint32_t unknown_b4_5 : 1;
+            std::uint32_t unknown_b4_6 : 1;
+            std::uint32_t unknown_b4_7 : 1;
+        };
 
-    uint8               ucColDamageEffect;              // 324
-    uint8               pad4;                           // 325
-    uint8               pad5;                           // 326
-    uint8               pad6;                           // 327
-    uint8               pad7;                           // 328
-    uint8               pad8;                           // 329
-    uint16              pad9;                           // 330
-    uint8               pad10;                          // 332
-    uint8               pad11;                          // 333
-    uint8               pad12;                          // 334
-    uint8               pad13;                          // 335
-    uint32              uiObjectRemovalTime;            // 336
-    float               fHealth;                        // 340
-    uint32              pad15;                          // 344
-    float               fScale;                         // 348
-    CObjectInfo*        pObjectInfo;                    // 352
-    CFireSAInterface*   pFire;                          // 356
-    uint16              pad17;                          // 360
-    uint16              pad18;                          // 362
-    uint32              pad19;                          // 364
-    CEntitySAInterface* pLinkedObjectDummy;             // 368  CDummyObject - Is used for dynamic objects like garage doors, train crossings etc.
-    uint32              pad21;                          // 372
-    uint32              pad22;                          // 376
+        std::uint32_t flags;
+    };
+
+    eObjectColDamageEffect         colDamageEffect;
+    eObjectSpecialColResponseCases specialColResponseCase;
+    std::uint8_t                   field_146;
+    std::int8_t                    garageDoorGarageIndex;
+    std::uint8_t                   lastWeaponDamage;
+    CColLighting                   colBrightness;
+    std::uint16_t                  carPartModelIndex;
+    std::uint8_t                   carColors[4];            // used for detached car parts
+    std::uint32_t                  removalTime;
+    float                          health;
+    float                          doorStartAngle;            // used for door objects
+    float                          scale;
+    CObjectInfo*                   objectInfo;
+    CFireSAInterface*              fire;
+    std::int16_t                   scriptTriggerIndex;
+    std::int16_t                   remapTxd;                     // used for detached car parts
+    RwTexture*                     remapTexture;                 // used for detached car parts
+    CEntitySAInterface*            linkedObjectDummy;            // CDummyObject - Is used for dynamic objects like garage doors, train crossings etc.
+    std::uint32_t                  timeToRemoveParticles;
+    float                          particlesIntensity;
 };
 static_assert(sizeof(CObjectSAInterface) == 0x17C, "Invalid size for CObjectSAInterface");
 
