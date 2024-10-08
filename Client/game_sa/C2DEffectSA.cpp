@@ -210,6 +210,28 @@ void C2DEffectSA::SetRoadsignText(const std::string& text, std::uint8_t line)
     }
 }
 
+void C2DEffectSA::SetRoadsignTextColor(const RwColor& color)
+{
+    if (IsValidRoadsign())
+    {
+        t2dEffectRoadsign& roadsign = m_effectInterface->effect.roadsign;
+        if (!roadsign.atomic)
+            return;
+
+        RpGeometry*   geometry = roadsign.atomic->geometry;
+        if (!geometry)
+            return;
+        
+        RpMaterials materials = geometry->materials;
+        for (std::size_t i = 0; i < materials.entries; i++)
+        {
+            RpMaterial* material = materials.materials[i];
+            if (material)
+                material->color = color;
+        }
+    }
+}
+
 RwV2d& C2DEffectSA::GetRoadsignSize()
 {
     if (IsValidRoadsign())
@@ -234,6 +256,27 @@ std::string C2DEffectSA::GetRoadsignText() const
         return std::string(m_effectInterface->effect.roadsign.text, 64);
 
     return "";
+}
+
+RwColor& C2DEffectSA::GetRoadsignTextColor() const
+{
+    if (IsValidRoadsign())
+    {
+        const t2dEffectRoadsign& roadsign = m_effectInterface->effect.roadsign;
+        if (roadsign.atomic)
+        {
+            RpGeometry* geometry = roadsign.atomic->geometry;
+            if (geometry)
+            {
+                RpMaterial* material = geometry->materials.materials[0];
+                if (material)
+                    return material->color;
+            }
+        }
+    }
+
+    static RwColor dummyColor{0, 0, 0, 0};
+    return dummyColor;
 }
 
 void C2DEffectSA::SetEscalatorBottom(const RwV3d& bottom)
@@ -367,19 +410,40 @@ C2DEffectSAInterface* C2DEffectSA::CreateCopy(C2DEffectSAInterface* effect)
     }
     else if (copy->type == e2dEffectType::ROADSIGN)
     {
-        // Create a copy of text and atomic for the roadsign
+        // Create a copy of text for the roadsign
         // We must to do this, because C2DEffect::Shutdown removes them
         copy->effect.roadsign.text = static_cast<char*>(std::malloc(64));
         if (copy->effect.roadsign.text)
         {
             MemSetFast(copy->effect.roadsign.text, 0, 64);
             MemCpyFast(copy->effect.roadsign.text, effect->effect.roadsign.text, 64);
-
-            copy->effect.roadsign.atomic = Roadsign_CreateAtomic(copy->position, copy->effect.roadsign.rotation, copy->effect.roadsign.size.x, copy->effect.roadsign.size.y, Roadsign_GetNumLinesFromFlags(copy->effect.roadsign.flags), &copy->effect.roadsign.text[0], &copy->effect.roadsign.text[16], &copy->effect.roadsign.text[32], &copy->effect.roadsign.text[48], Roadsign_GetNumLettersFromFlags(copy->effect.roadsign.flags), Roadsign_GetPalleteIDFromFlags(copy->effect.roadsign.flags));
         }
+
+        copy->effect.roadsign.atomic = nullptr;
     }
 
     return copy;
+}
+
+void C2DEffectSA::CreateEffectFromCopy(C2DEffectSAInterface* targetInterface, C2DEffectSAInterface* copy, bool deleteCopy)
+{
+    if (!targetInterface || !copy)
+        return;
+
+    Shutdown(targetInterface);
+
+    MemCpyFast(targetInterface, copy, sizeof(C2DEffectSAInterface));
+    if (targetInterface->type == e2dEffectType::ROADSIGN)
+    {
+        targetInterface->effect.roadsign.text = static_cast<char*>(std::malloc(64));
+        if (targetInterface->effect.roadsign.text)
+            MemCpyFast(targetInterface->effect.roadsign.text, copy->effect.roadsign.text, 64);
+
+        targetInterface->effect.roadsign.atomic = nullptr;
+    }
+
+    if (deleteCopy)
+        SafeDelete2DFXEffect(copy);
 }
 
 void C2DEffectSA::Shutdown(C2DEffectSAInterface* effect)
@@ -394,7 +458,7 @@ void C2DEffectSA::Shutdown(C2DEffectSAInterface* effect)
 
         if (roadsign.text)
         {
-            std::free(roadsign.text);
+            delete roadsign.text;
             roadsign.text = nullptr;
         }
     }

@@ -397,7 +397,7 @@ struct RpMaterials
 {
     RpMaterial** materials;
     int          entries;
-    int          unknown;
+    int          space;
 };
 struct RpTriangle
 {

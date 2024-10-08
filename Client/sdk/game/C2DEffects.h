@@ -67,7 +67,7 @@ enum class e2dEffectProperty
     OFFSET_X,
     OFFSET_Y,
     OFFSET_Z,
-    COLOR,
+    COLOR, // for light & roadsign
     CORONA_NAME,
     SHADOW_NAME,
     FLAGS,            // for light & roadsign

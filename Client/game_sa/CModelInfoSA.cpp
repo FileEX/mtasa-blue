@@ -38,11 +38,11 @@ std::unordered_map<DWORD, unsigned short>                             CModelInfo
 std::unordered_map<DWORD, std::pair<float, float>>                    CModelInfoSA::ms_VehicleModelDefaultWheelSizes;
 std::map<unsigned short, int>                                         CModelInfoSA::ms_DefaultTxdIDMap;
 
-std::unordered_map<std::uint32_t, std::uint8_t>                                                     CModelInfoSA::ms_DefaultNumOf2DFXEffects;
+static std::unordered_map<std::uint32_t, std::uint8_t>                                              ms_DefaultNumOf2DFXEffects;
 std::unordered_map<std::uint32_t, std::unordered_map<C2DEffectSAInterface*, C2DEffectSAInterface*>> CModelInfoSA::ms_DefaultEffectsMap;
-static std::unordered_map<CBaseModelInfoSAInterface*, std::uint32_t>                                       ms_NumOfCustom2DFXEffects;
-static std::vector<C2DEffectSAInterface*>                                                                  ms_Custom2DFXEffects;
-std::unordered_map<std::uint32_t, std::vector<C2DEffectSAInterface*>>                               CModelInfoSA::ms_TempCopiesOfDefault2DFXEffects;
+static std::unordered_map<CBaseModelInfoSAInterface*, std::uint32_t>                                ms_NumOfCustom2DFXEffects;
+static std::vector<C2DEffectSAInterface*>                                                           ms_Custom2DFXEffects;
+static std::unordered_map<std::uint32_t, std::uint8_t>                                              removedEffectObjects;
 
 int C2DEffectSA::effect2dPluginOffset = *(int*)0xC3A1E0; // g2dEffectPluginOffset
 static auto* fx = reinterpret_cast<CFxSAInterface*>(VAR_G_Fx);
@@ -1206,17 +1206,11 @@ void CModelInfoSA::StaticReset2DFXEffects()
 
         // Restore counter
         modelInfoInterface->ucNumOf2DEffects = MapGet(ms_DefaultNumOf2DFXEffects, iter->first);
-
-        // Destroy copies
-        auto& copies = MapGet(ms_TempCopiesOfDefault2DFXEffects, iter->first);
-        for (auto& copy : copies)
-            C2DEffectSA::SafeDelete2DFXEffect(copy);
     }
 
     // Clear maps & vectors
     ms_DefaultEffectsMap.clear();
     ms_Custom2DFXEffects.clear();
-    ms_TempCopiesOfDefault2DFXEffects.clear();
 }
 
 short CModelInfoSA::GetAvailableVehicleMod(unsigned short usUpgrade)
@@ -2127,7 +2121,7 @@ auto CModelInfoSA::GetEntitiesFromFx(std::uint32_t modelID)
     return vec;
 }
 
-void CModelInfoSA::Update2DFXEffect(C2DEffectSA* effect)
+void CModelInfoSA::Update2DFXEffect(C2DEffectSA* effect, std::uint32_t modelID)
 {
     if (!effect)
         return;
@@ -2141,7 +2135,7 @@ void CModelInfoSA::Update2DFXEffect(C2DEffectSA* effect)
     {
         case e2dEffectType::PARTICLE:
         {
-            auto entities = GetEntitiesFromFx(m_dwModelID);
+            auto entities = GetEntitiesFromFx(modelID);
             for (auto entity : entities)
             {
                 // Call Fx_c::DestroyEntityFx
@@ -2162,13 +2156,23 @@ void CModelInfoSA::Update2DFXEffect(C2DEffectSA* effect)
         }
         case e2dEffectType::ROADSIGN:
         {
+            // Store current color & text
             t2dEffectRoadsign& roadsign = effectInterface->effect.roadsign;
-            C2DEffectSA::Roadsign_DestroyAtomic(effectInterface);
+            RwColor            color = effect->GetRoadsignTextColor();
 
+            // Destroy current roadsign
+            if (roadsign.atomic)
+                C2DEffectSA::Roadsign_DestroyAtomic(effectInterface);
+
+            // Create new roadsign
             std::uint32_t numLines = C2DEffectSA::Roadsign_GetNumLinesFromFlags(roadsign.flags);
             std::uint32_t numLetters = C2DEffectSA::Roadsign_GetNumLettersFromFlags(roadsign.flags);
             std::uint8_t  palleteID = C2DEffectSA::Roadsign_GetPalleteIDFromFlags(roadsign.flags);
             roadsign.atomic = C2DEffectSA::Roadsign_CreateAtomic(effectInterface->position, roadsign.rotation, roadsign.size.x, roadsign.size.y, numLines, &roadsign.text[0], &roadsign.text[16], &roadsign.text[32], &roadsign.text[48], numLetters, palleteID);
+
+            // Restore color
+            if (roadsign.atomic)
+                effect->SetRoadsignTextColor(color);
 
             break;
         }
@@ -2204,32 +2208,39 @@ bool CModelInfoSA::Reset2DFXEffects()
     // Restore default effects
     auto& map = MapGet(ms_DefaultEffectsMap, m_dwModelID);
     auto* effects = pGame->Get2DEffects();
+    std::uint8_t currentEffect = 0;
+
     for (auto& it = map.begin(); it != map.end();)
     {
-        // Copy data from copied effect to the default
-        MemCpyFast(it->first, it->second, sizeof(C2DEffectSAInterface));
+        C2DEffectSA* effect = Get2DFXFromIndex(currentEffect);
+        if (!effect)
+            continue;
+
+        C2DEffectSAInterface* effectInterface = effect->GetInterface();
+
+        // Copy data from copied effect to the current interface
+        C2DEffectSA::CreateEffectFromCopy(effectInterface, it->second, true);
 
         // We no longer need a copy
         // So delete it
-        C2DEffectSA::SafeDelete2DFXEffect(it->second);
         it = map.erase(it);
 
         // Update effect
-        Update2DFXEffect(effects->Get(it->first));
+        Update2DFXEffect(effect, m_dwModelID);
+        
+        if (effect->GetEffectType() == e2dEffectType::ROADSIGN)
+            // Each roadsign has a white color by default
+            effect->SetRoadsignTextColor(RwColor{255, 255, 255, 255});
+
+        currentEffect++;
     }
 
     // Restore counter
-    m_pInterface->ucNumOf2DEffects = MapGet(ms_DefaultNumOf2DFXEffects, m_dwModelID);
-
-    // Delete temp copies
-    auto& copies = MapGet(ms_TempCopiesOfDefault2DFXEffects, m_dwModelID);
-    for (auto* copy : copies)
-        C2DEffectSA::SafeDelete2DFXEffect(copy);
+    m_pInterface->ucNumOf2DEffects = MapGet(ms_DefaultNumOf2DFXEffects, m_dwModelID) + MapGet(ms_NumOfCustom2DFXEffects, m_pInterface);
 
     // Clear maps
     map.clear();
     ms_DefaultEffectsMap.erase(m_dwModelID);
-    ms_TempCopiesOfDefault2DFXEffects.erase(m_dwModelID);
     return true;
 }
 
@@ -2387,85 +2398,80 @@ C2DEffectSA* CModelInfoSA::Get2DFXFromIndex(std::uint32_t index)
     return pGame->Get2DEffects()->Get(effectInterface);
 }
 
-void CModelInfoSA::CopyModified2DFXEffects()
+void __fastcall CModelInfoSA::CopyModified2DFXEffects(CBaseModelInfoSAInterface* modelInfo, std::uint32_t modelID)
 {
-    CBaseModelInfoSAInterface* modelInfo = ppModelInfo[m_dwModelID];
     if (!modelInfo || modelInfo->ucNumOf2DEffects == 0)
         return;
 
-    bool          hasModifiedEffects = MapContains(ms_DefaultEffectsMap, m_dwModelID);
-    auto          tempVec = std::vector<C2DEffectSAInterface*>();
-    std::uint32_t numEffects = MapGet(ms_DefaultNumOf2DFXEffects, m_dwModelID);
-    auto*         effects = pGame->Get2DEffects();
-    for (std::uint32_t i = 0; i < numEffects; i++)
-    {
-        auto effectInterface = ((C2DEffectSAInterface * (__thiscall*)(CBaseModelInfoSAInterface*, std::uint32_t index)) FUNC_CBaseModelInfo_Get2dEffect)(modelInfo, i);
-        if (!effectInterface)
-            continue;
-
-        // Delete our 2dfx object
-        C2DEffectSA* effect = effects->Get(effectInterface);
-        if (effect)
-        {
-            effects->RemoveFromList(effect);
-            delete effect;
-        }
-
-        if (hasModifiedEffects)
-        {
-            // Copy effect
-            auto* copy = C2DEffectSA::CreateCopy(effectInterface);
-            tempVec.push_back(copy);
-        }
-    }
-
-    if (hasModifiedEffects)
-        MapSet(ms_TempCopiesOfDefault2DFXEffects, m_dwModelID, tempVec);
-}
-
-void CModelInfoSA::RestoreModified2DFXEffects()
-{
-    CBaseModelInfoSAInterface* modelInfo = ppModelInfo[m_dwModelID];
-    if (!modelInfo)
+    if (MapContains(removedEffectObjects, modelID))
         return;
-
-    // Set default num of 2dfx effects
-    if (!MapContains(ms_DefaultNumOf2DFXEffects, m_dwModelID))
-        MapSet(ms_DefaultNumOf2DFXEffects, m_dwModelID, modelInfo->ucNumOf2DEffects);
-
-    // Create C2DEffectSA instance for each default effect interface
-    std::uint32_t numEffects = MapGet(ms_DefaultNumOf2DFXEffects, m_dwModelID);
-    auto*         tempVec = MapFind(ms_TempCopiesOfDefault2DFXEffects, m_dwModelID);
-    for (std::uint32_t i = 0; i < numEffects; i++)
+        
+    std::uint8_t effectsNum = MapGet(ms_DefaultNumOf2DFXEffects, modelID);
+    auto effects = pGame->Get2DEffects();
+    for (std::uint8_t i = 0; i < effectsNum; i++)
     {
         auto* effectInterface = ((C2DEffectSAInterface*(__thiscall*)(CBaseModelInfoSAInterface*, std::uint32_t))FUNC_CBaseModelInfo_Get2dEffect)(modelInfo, i);
         if (!effectInterface)
             continue;
 
-        // Create our 2dfx object instance
-        C2DEffectSA* effect = new C2DEffectSA(effectInterface, m_dwModelID);
-        if (!effect)
-            continue;
-
-        if (tempVec && (*tempVec)[i])
+        C2DEffectSA* effect = effects->Get(effectInterface);
+        if (effect)
         {
-            MemCpyFast(effectInterface, (*tempVec)[i], sizeof(C2DEffectSAInterface));
-            effectInterface->effect.roadsign.text = static_cast<char*>(std::malloc(64));
-            if (effectInterface->effect.roadsign.text)
-            {
-                MemSetFast(effectInterface->effect.roadsign.text, 0, 64);
-                MemCpyFast(effectInterface->effect.roadsign.text, (*tempVec)[i]->effect.roadsign.text, 64);
-            }
+            effects->RemoveFromList(effect);
 
-            C2DEffectSA::SafeDelete2DFXEffect((*tempVec)[i]);
-            Update2DFXEffect(effect);
+            delete effect;
+            effect = nullptr;
         }
     }
 
-    if (tempVec)
+    auto* it = MapFind(removedEffectObjects, modelID);
+    if (!it)
+        MapSet(removedEffectObjects, modelID, 1);
+
+    MapSet(removedEffectObjects, modelID, MapGet(removedEffectObjects, modelID)++);
+}
+
+void __fastcall CModelInfoSA::RestoreModified2DFXEffects(std::uint32_t modelID)
+{
+    // ppModelInfo and ms_modelInfoPtrs cause crashes here sometimes
+    CModelInfo* gameModelInfo = pGame->GetModelInfo(modelID);
+    if (!gameModelInfo)
+        return;
+
+    CBaseModelInfoSAInterface* modelInfo = gameModelInfo->GetInterface();
+    if (!modelInfo || modelInfo->ucNumOf2DEffects == 0)
+        return;
+
+    auto& it = removedEffectObjects.find(modelID);
+    bool find = it != removedEffectObjects.end();
+    if (!find && !removedEffectObjects.empty())
+        return;
+
+    // Set default num of 2dfx effects
+    auto* numEffectsPtr = MapFind(ms_DefaultNumOf2DFXEffects, modelID);
+    if (!numEffectsPtr || *numEffectsPtr == 0)
     {
-        tempVec->clear();
-        ms_TempCopiesOfDefault2DFXEffects.erase(m_dwModelID);
+        MapSet(ms_DefaultNumOf2DFXEffects, modelID, modelInfo->ucNumOf2DEffects);
+        numEffectsPtr = &MapGet(ms_DefaultNumOf2DFXEffects, modelID);
+    }
+
+    std::uint8_t numEffects = *numEffectsPtr;
+    for (std::uint8_t i = 0; i < numEffects; i++)
+    {
+        auto* effectInterface = ((C2DEffectSAInterface*(__thiscall*)(CBaseModelInfoSAInterface*, std::uint32_t))FUNC_CBaseModelInfo_Get2dEffect)(modelInfo, i);
+        if (!effectInterface)
+            continue;
+
+        new C2DEffectSA(effectInterface, modelID);
+    }
+
+    if (find)
+    {
+        auto count = MapGet(removedEffectObjects, modelID)--;
+        MapSet(removedEffectObjects, modelID, count);
+
+        if (count <= 0)
+            removedEffectObjects.erase(it);
     }
 }
 

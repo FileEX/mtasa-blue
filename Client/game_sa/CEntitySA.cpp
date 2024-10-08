@@ -720,61 +720,65 @@ bool CEntitySA::GetUnderwater()
 // and the default effects are restored even though they have been modified.
 //
 //////////////////////////////////////////////////////////////////////////////////////////
-static void Keep2DFXEffectsBeforeRemove(std::uint32_t modelID)
-{
-    CModelInfo* modelInfo = pGame->GetModelInfo(modelID);
-    if (!modelInfo)
-        return;
-
-    modelInfo->CopyModified2DFXEffects();
-}
-
-#define HOOKPOS_CEntity_DestroyEffects 0x533C01
+#define HOOKPOS_CEntity_DestroyEffects  0x533C05
 #define HOOKSIZE_CEntity_DestroyEffects 5
-static constexpr DWORD CONTINUE_CEntity_DestroyEffects = 0x533C06;
+static constexpr DWORD CONTINUE_CEntity_DestroyEffects = 0x533C0A;
 static void _declspec(naked) HOOK_CEntity_DestroyEffects()
 {
     _asm
     {
+        push ebp
+        xor ebp, ebp
+        // 2dfxCount == 0?
+        test eax, eax
+        jz skip
+
+        // interface is null?
+        test ecx, ecx
+        jz skip
+
+        // Call our function
         pushad
-        push eax
-        call Keep2DFXEffectsBeforeRemove
-        add esp, 4
+        movsx edx, word ptr [ebx+22h]
+        call CModelInfoSA::CopyModified2DFXEffects
         popad
 
-        movzx eax, byte ptr [ecx+0Dh]
-        push ebp
+        // Continue execution
         jmp CONTINUE_CEntity_DestroyEffects
+
+        skip:
+        pop ebp
+        pop ebx
+        add esp, 20h
+        retn
     }
 }
 
-static void Restore2DFXEffects(std::uint32_t modelID)
-{
-    CModelInfo* modelInfo = pGame->GetModelInfo(modelID);
-    if (!modelInfo)
-        return;
-
-    modelInfo->RestoreModified2DFXEffects();
-}
-
 #define HOOKPOS_CEntity_CreateEffects 0x533BAE
-#define HOOKSIZE_CEntity_CreateEffects 9
-static constexpr DWORD RETURN_CEntity_CreateEffects = 0x533BB7;
+#define HOOKSIZE_CEntity_CreateEffects 10
 static void _declspec(naked) HOOK_CEntity_CreateEffects()
 {
     _asm
     {
+        // JMP from 0x5337C6
         pushad
-        push [ebp+22h]
-        call Restore2DFXEffects
-        add esp, 4
-        popad
+        test eax, eax
+        jz skip
 
+        // Normally, the interface is located at esp+20h, but in some cases,
+        // the value on the stack gets lost and overwritten.
+        // Therefore, we will read the interface based on the model.
+        movsx ecx, word ptr [ebp+22h]
+        call CModelInfoSA::RestoreModified2DFXEffects
+        jmp skip
+
+        skip:
+        popad
         pop edi
         pop ebp
         pop ebx
         add esp, 0C0h
-        jmp RETURN_CEntity_CreateEffects
+        retn
     }
 }
 

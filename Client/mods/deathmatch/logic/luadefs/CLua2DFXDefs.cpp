@@ -144,7 +144,14 @@ bool CLua2DFXDefs::SetModel2DFXProperties(std::uint32_t modelID, std::uint32_t i
     if (!effect)
         return false;
 
-    const char* error = CClient2DFXManager::IsValidEffectData(reinterpret_cast<C2DEffect*>(effect)->GetEffectType(), effectData);
+    C2DEffect* clientEffect = reinterpret_cast<C2DEffect*>(effect);
+
+    // Roadsign is quite unstable, causing crashes when allocating and freeing memory
+    // for text and atomic for unknown reasons
+    if (clientEffect->GetEffectType() == e2dEffectType::ROADSIGN)
+        return false;
+
+    const char* error = CClient2DFXManager::IsValidEffectData(clientEffect->GetEffectType(), effectData);
     if (error)
         throw LuaFunctionError(error);
 
@@ -153,7 +160,7 @@ bool CLua2DFXDefs::SetModel2DFXProperties(std::uint32_t modelID, std::uint32_t i
     if (!m_p2DFXManager->Set2DFXProperties(reinterpret_cast<C2DEffect*>(effect), effectData))
         return false;
 
-    modelInfo->Update2DFXEffect(effect);
+    modelInfo->StaticUpdate2DFXEffect(effect, modelID);
     return true;
 }
 
@@ -170,7 +177,7 @@ bool CLua2DFXDefs::Set2DFXProperties(CClient2DFX* effect, effectDataMap effectDa
     if (!m_p2DFXManager->Set2DFXProperties(effect->Get2DFX(), effectData))
         return false;
 
-    modelInfo->Update2DFXEffect(effect->Get2DFX());
+    modelInfo->Update2DFXEffect(effect->Get2DFX(), effect->GetModelID());
     return true;
 }
 
@@ -191,12 +198,19 @@ bool CLua2DFXDefs::SetModel2DFXProperty(std::uint32_t modelID, std::uint32_t ind
     if (!effect)
         return false;
 
-    modelInfo->StoreDefault2DFXEffect(effect);
+    C2DEffect* clientEffect = reinterpret_cast<C2DEffect*>(effect);
 
-    if (!m_p2DFXManager->Set2DFXProperty(reinterpret_cast<C2DEffect*>(effect), property, propertyValue))
+    // Roadsign is quite unstable, causing crashes when allocating and freeing memory
+    // for text and atomic for unknown reasons
+    if (clientEffect->GetEffectType() == e2dEffectType::ROADSIGN)
         return false;
 
-    modelInfo->Update2DFXEffect(effect);
+    modelInfo->StoreDefault2DFXEffect(effect);
+
+    if (!m_p2DFXManager->Set2DFXProperty(clientEffect, property, propertyValue))
+        return false;
+
+    modelInfo->StaticUpdate2DFXEffect(effect, modelID);
     return true;
 }
 
@@ -209,7 +223,7 @@ bool CLua2DFXDefs::Set2DFXProperty(CClient2DFX* effect, e2dEffectProperty proper
     if (!m_p2DFXManager->Set2DFXProperty(effect->Get2DFX(), property, propertyValue))
         return false;
 
-    modelInfo->Update2DFXEffect(effect->Get2DFX());
+    modelInfo->Update2DFXEffect(effect->Get2DFX(), effect->GetModelID());
     return true;
 }
 
@@ -233,7 +247,7 @@ bool CLua2DFXDefs::SetModel2DFXPosition(std::uint32_t modelID, std::uint32_t ind
     modelInfo->StoreDefault2DFXEffect(effect);
     m_p2DFXManager->Set2DFXPosition(reinterpret_cast<C2DEffect*>(effect), position);
 
-    modelInfo->Update2DFXEffect(effect);
+    modelInfo->StaticUpdate2DFXEffect(effect, modelID);
     return true;
 }
 
@@ -244,7 +258,7 @@ bool CLua2DFXDefs::Set2DFXPosition(CClient2DFX* effect, CVector position)
         return false;
 
     m_p2DFXManager->Set2DFXPosition(effect->Get2DFX(), position);
-    modelInfo->Update2DFXEffect(effect->Get2DFX());
+    modelInfo->Update2DFXEffect(effect->Get2DFX(), effect->GetModelID());
     return true;
 }
 

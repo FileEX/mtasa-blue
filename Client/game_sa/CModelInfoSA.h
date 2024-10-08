@@ -334,9 +334,7 @@ protected:
     static std::unordered_map<DWORD, std::pair<float, float>>                    ms_VehicleModelDefaultWheelSizes;
     static std::map<unsigned short, int>                                         ms_DefaultTxdIDMap;
 
-    static std::unordered_map<std::uint32_t, std::uint8_t>                                                     ms_DefaultNumOf2DFXEffects;
-    static std::unordered_map<std::uint32_t, std::unordered_map<C2DEffectSAInterface*, C2DEffectSAInterface*>> ms_DefaultEffectsMap;
-    static std::unordered_map<std::uint32_t, std::vector<C2DEffectSAInterface*>>                               ms_TempCopiesOfDefault2DFXEffects;
+    static std::unordered_map<std::uint32_t, std::unordered_map<C2DEffectSAInterface*, C2DEffectSAInterface*>> CModelInfoSA::ms_DefaultEffectsMap;
 
     SVehicleSupportedUpgrades                                                    m_ModelSupportedUpgrades;
 
@@ -482,8 +480,9 @@ public:
     bool                  RemoveAll2DFXEffects(bool includeDefault);
     C2DEffectSA*          Get2DFXFromIndex(std::uint32_t index);
     std::uint32_t         Get2DFXCount() const { return m_pInterface ? m_pInterface->ucNumOf2DEffects : 0; }
-    void                  Update2DFXEffect(C2DEffectSA* effect);
-    void                  Update2DFXEffect(C2DEffect* effect) { Update2DFXEffect(dynamic_cast<C2DEffectSA*>(effect)); }
+    static void           Update2DFXEffect(C2DEffectSA* effect, std::uint32_t modelID);
+    void                  StaticUpdate2DFXEffect(C2DEffectSA* effect, std::uint32_t modelID) { Update2DFXEffect(effect, modelID); }
+    void                  Update2DFXEffect(C2DEffect* effect, std::uint32_t modelID) { Update2DFXEffect(dynamic_cast<C2DEffectSA*>(effect), modelID); }
 
     static auto GetEntitiesFromFx(std::uint32_t modelID);
 
@@ -492,8 +491,8 @@ public:
     bool        Reset2DFXEffects();
     static void StaticReset2DFXEffects();
 
-    void CopyModified2DFXEffects();
-    void RestoreModified2DFXEffects();
+    static void __fastcall CopyModified2DFXEffects(CBaseModelInfoSAInterface* modelInfo, std::uint32_t modelID);
+    static void __fastcall RestoreModified2DFXEffects(std::uint32_t modelID);
 
     bool IsDynamic() { return m_pInterface ? m_pInterface->usDynamicIndex != 0xffff : false; };
 

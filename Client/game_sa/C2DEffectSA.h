@@ -99,12 +99,14 @@ public:
     void SetRoadsignRotation(const RwV3d& rotation) override;
     void SetRoadsignFlags(std::uint8_t flags) override;
     void SetRoadsignText(const std::string& text, std::uint8_t line) override;
+    void SetRoadsignTextColor(const RwColor& color) override;
 
     // Get
     RwV2d&        GetRoadsignSize() override;
     RwV3d&        GetRoadsignRotation() override;
     std::uint16_t GetRoadsignFlags() const override { return IsValidRoadsign() ? m_effectInterface->effect.roadsign.flags : 0; }
     std::string   GetRoadsignText() const override;
+    RwColor&      GetRoadsignTextColor() const override;
 
     // Escalator properties
     // Set
@@ -123,9 +125,10 @@ public:
     static std::uint32_t Roadsign_GetPalleteIDFromFlags(std::uint8_t flags);
     static std::uint32_t Roadsign_GetNumLettersFromFlags(std::uint8_t flags);
     static std::uint32_t Roadsign_GetNumLinesFromFlags(std::uint8_t flags);
-    static void Roadsign_DestroyAtomic(C2DEffectSAInterface* effect);
+    static void          Roadsign_DestroyAtomic(C2DEffectSAInterface* effect);
 
     static C2DEffectSAInterface* CreateCopy(C2DEffectSAInterface* effect);
+    static void                  CreateEffectFromCopy(C2DEffectSAInterface* targetInterface, C2DEffectSAInterface* copy, bool deleteCopy);
 
     static void Shutdown(C2DEffectSAInterface* effect);
     static void SafeDelete2DFXEffect(C2DEffectSAInterface* effect);

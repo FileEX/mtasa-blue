@@ -257,15 +257,12 @@ public:
     virtual C2DEffectSA* Get2DFXFromIndex(std::uint32_t index) = 0;
     virtual std::uint32_t         Get2DFXCount() const = 0;
 
-    virtual void Update2DFXEffect(C2DEffectSA* effect) = 0;
-    virtual void Update2DFXEffect(C2DEffect* effect) = 0;
+    virtual void StaticUpdate2DFXEffect(C2DEffectSA* effect, std::uint32_t modelID) = 0;
+    virtual void Update2DFXEffect(C2DEffect* effect, std::uint32_t modelID) = 0;
 
     virtual void StoreDefault2DFXEffect(C2DEffectSA* effect) = 0;
     virtual void StoreDefault2DFXEffect(C2DEffectSAInterface* effect) = 0;
     virtual bool Reset2DFXEffects() = 0;
-
-    virtual void CopyModified2DFXEffects() = 0;
-    virtual void RestoreModified2DFXEffects() = 0;
 
     virtual unsigned int GetParentID() = 0;
     virtual bool         IsDynamic() = 0;

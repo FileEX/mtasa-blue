@@ -7,11 +7,11 @@
  *
  *  Multi Theft Auto is available from https://www.multitheftauto.com/
  *
- *
  *****************************************************************************/
 
 #pragma once
 #include "C2DEffects.h"
+#include <string> // for visual studio syntax highlighting errors
 
 struct RwColor;
 struct RwV2d;
@@ -72,12 +72,14 @@ public:
     virtual void SetRoadsignRotation(const RwV3d& rotation) = 0;
     virtual void SetRoadsignFlags(std::uint8_t flags) = 0;
     virtual void SetRoadsignText(const std::string& text, std::uint8_t line) = 0;
+    virtual void SetRoadsignTextColor(const RwColor& color) = 0;
 
     // Get
     virtual RwV2d& GetRoadsignSize() = 0;
     virtual RwV3d& GetRoadsignRotation() = 0;
     virtual std::uint16_t GetRoadsignFlags() const = 0;
     virtual std::string   GetRoadsignText() const = 0;
+    virtual RwColor&      GetRoadsignTextColor() const = 0;
 
     // Escalator properties
     // Set

@@ -141,6 +141,10 @@ effectDataMap CClient2DFXManager::Get2DFXProperties(C2DEffect* effect) const
             MapSet(properties, "flags", static_cast<float>(effect->GetRoadsignFlags()));
             MapSet(properties, "text", effect->GetRoadsignText());
 
+            RwColor& color = effect->GetRoadsignTextColor();
+            int colorValue = (static_cast<int>(color.a) << 24) | (static_cast<int>(color.r) << 16) | (static_cast<int>(color.g) << 8) | static_cast<int>(color.b);
+            MapSet(properties, "color", static_cast<float>(colorValue));
+
             break;
         }
         case e2dEffectType::ESCALATOR:
@@ -481,6 +485,18 @@ bool CClient2DFXManager::Set2DFXProperty(C2DEffect* effect, const e2dEffectPrope
 
                     break;
                 }
+                case e2dEffectProperty::COLOR:
+                {
+                    if (std::holds_alternative<float>(propertyValue))
+                    {
+                        std::uint32_t colorValue = static_cast<std::uint32_t>(std::get<float>(propertyValue));
+                        effect->SetRoadsignTextColor(RwColor{static_cast<std::uint8_t>((colorValue >> 16) & mask(8)), static_cast<std::uint8_t>((colorValue >> 8) & mask(8)), static_cast<std::uint8_t>((colorValue >> 0) & mask(8)), static_cast<std::uint8_t>((colorValue >> 24) & mask(8))});
+
+                        return true;
+                    }
+
+                    break;
+                }
             }
             break;
         }
@@ -695,6 +711,13 @@ std::variant<float, bool, std::string> CClient2DFXManager::Get2DFXProperty(C2DEf
                 case e2dEffectProperty::TEXT_3:
                 case e2dEffectProperty::TEXT_4:
                     return effect->GetRoadsignText();
+                case e2dEffectProperty::COLOR:
+                {
+                    RwColor& color = effect->GetRoadsignTextColor();
+                    int colorValue = (static_cast<int>(color.a) << 24) | (static_cast<int>(color.r) << 16) | (static_cast<int>(color.g) << 8) | static_cast<int>(color.b);
+
+                    return static_cast<float>(colorValue);
+                }
             }
 
             break;
@@ -874,6 +897,10 @@ const char* CClient2DFXManager::IsValidEffectData(const e2dEffectType& effectTyp
             auto* text4 = MapFind(effectData, "text4");
             if (!text4 || !std::holds_alternative<std::string>(*text4))
                 return "Invalid \"text4\" value";
+
+            auto* color = MapFind(effectData, "color");
+            if (color && !std::holds_alternative<float>(*color))
+                return "Invalid \"color\" value";
 
             break;
         }
