@@ -10,6 +10,7 @@
  *****************************************************************************/
 
 #pragma once
+#include "gamesa_defs.h"
 
 //
 // Use MemSet/Cpy/Put for non Mem*Fast memory regions
