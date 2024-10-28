@@ -91,43 +91,49 @@ DWORD CONTINUE_CWorld_FallenCars = 0x00565E8A;
 
 void _declspec(naked) HOOK_FallenPeds()
 {
-    if (pGame && pGame->IsUnderWorldWarpEnabled())
+    _asm
     {
-        _asm
-        {
-            sub esp, 2Ch
-            push ebx
-            mov ebx, ds:0B74490h
-            jmp CONTINUE_CWorld_FallenPeds
-        }
-    }
-    else
-    {
-        _asm
-        {
-            ret
-        }
+        // if (pGame)
+        mov eax, pGame
+        test eax, eax
+        jz skip
+
+        // if (pGame->IsUnderWorldWarpEnabled())
+        call dword ptr [eax+80h]
+        test al, al
+        jz skip
+
+        sub esp, 2Ch
+        push ebx
+        mov ebx, ds:0B74490h
+        jmp CONTINUE_CWorld_FallenPeds
+
+        skip:
+        ret
     }
 }
 
 void _declspec(naked) HOOK_FallenCars()
 {
-    if (pGame && pGame->IsUnderWorldWarpEnabled())
+    _asm
     {
-        _asm
-        {
-            sub esp, 2Ch
-            push ebx
-            mov ebx, ds:0B74494h
-            jmp CONTINUE_CWorld_FallenCars
-        }
-    }
-    else
-    {
-        _asm
-        {
-            ret
-        }
+        // if (pGame)
+        mov eax, pGame
+        test eax, eax
+        jz skip
+
+        // if (pGame->IsUnderWorldWarpEnabled())
+        call dword ptr [eax+80h]
+        test al, al
+        jz skip
+
+        sub esp, 2Ch
+        push ebx
+        mov ebx, ds:0B74494h
+        jmp CONTINUE_CWorld_FallenCars
+
+        skip:
+        ret
     }
 }
 

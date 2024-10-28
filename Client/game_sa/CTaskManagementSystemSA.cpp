@@ -265,20 +265,16 @@ __declspec(noinline) void OnMY_Task_Operator_Delete(CTaskSAInterface* pTaskInter
 void _declspec(naked) HOOK_CTask_Operator_Delete()
 {
     _asm
-        {
-        mov     eax, [esp+4]
-        mov     pTempTaskInterface, eax
+    {
+        mov eax, [esp+4]
+        mov pTempTaskInterface, eax
 
         pushad
-        }
-
-    OnMY_Task_Operator_Delete(pTempTaskInterface);
-
-    // Continue on our merry way....
-    _asm
-    {
+        push pTempTaskInterface
+        call OnMY_Task_Operator_Delete
         popad
 
+        // Continue on our merry way....
         mov     eax, 0xB744A8
         mov     ecx, dword ptr [eax]
         mov     eax, FUNC_CTask_Operator_Delete

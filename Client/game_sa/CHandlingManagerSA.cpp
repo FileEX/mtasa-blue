@@ -103,20 +103,14 @@ __declspec(noinline) void DumpHandlingData(tHandlingDataSA* pData)
 
 static __declspec(naked) void Hook_Calculate()
 {
-    tHandlingDataSA* pData;
-    DWORD dwHandlingData;
     _asm
     {
-        mov         eax, [esp+4]
-        mov         dwHandlingData, eax
-    }
+        mov eax, [esp+4]
+        push eax
+        call DumpHandlingData
+        add esp, 4
 
-    pData = reinterpret_cast<tHandlingDataSA*>(dwHandlingData);
-    DumpHandlingData(pData);
-
-    _asm
-    {
-        ret         4
+        ret 4
     }
 }
 

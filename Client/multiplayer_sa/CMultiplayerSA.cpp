@@ -2836,50 +2836,43 @@ void _declspec(naked) HOOK_CStreaming_Update_Caller()
     {
         // Store all registers
         pushad
-    }
 
-    // We're now in the streaming update
-    bInStreamingUpdate = true;
+        // We're now in the streaming update
+        mov bInStreamingUpdate, 1
 
-    // We have an active entity for streaming?
-    if (activeEntityForStreaming)
-    {
+        // We have an active entity for streaming?
+        mov edi, activeEntityForStreaming
+        test edi, edi
+        jz skip
+
         // Do something...
-        _asm
-        {
-            mov     edi, FUNC_CPlayerInfoBase
-            mov     ebx, [edi]
-            mov     dwSavedPlayerPointer, ebx
-            mov     ebx, activeEntityForStreaming
-            mov     [edi], ebx
-        }
-    }
+        mov     edi, FUNC_CPlayerInfoBase
+        mov     ebx, [edi]
+        mov     dwSavedPlayerPointer, ebx
+        mov     ebx, activeEntityForStreaming
+        mov     [edi], ebx
 
-    _asm
-    {
+        skip:
         mov     edi, eax
 
         // Call FUNC_CStreaming_Update
         mov     eax, FUNC_CStreaming_Update
         call    eax
-    }
 
-    // We have an entity for streaming?
-    if (activeEntityForStreaming)
-    {
-        _asm
-        {
-            // ...
-            mov     edi, FUNC_CPlayerInfoBase
-            mov     ebx, dwSavedPlayerPointer
-            mov     [edi], ebx
-        }
-    }
+        // We have an entity for streaming?
+        mov eax, activeEntityForStreaming
+        test eax, eax
+        jz skip2
 
-    // We're no longer in streaming update
-    bInStreamingUpdate = false;
-    _asm
-    {
+        // ...
+        mov     edi, FUNC_CPlayerInfoBase
+        mov     ebx, dwSavedPlayerPointer
+        mov     [edi], ebx
+
+        skip2:
+        // We're no longer in streaming update
+        mov bInStreamingUpdate, 0
+
         // Restore registers
         popad
 
@@ -2902,18 +2895,30 @@ void _declspec(naked) HOOK_CHud_Draw_Caller()
 
         mov     edx, FUNC_CAudioEngine__DisplayRadioStationName
         call    edx
+
+        movzx edx, bSetCenterOfWorld
+        test edx, edx
+        jnz skip
+
+        mov edx, FUNC_CHud_Draw
+        call edx
+
+        skip:
+        movzx edx, bHideRadar
+        test edx, edx
+        jnz skip2
+
+        mov edx, 0x58A330
+        call edx
+
+        skip2:
+        popad
+
+        mov     eax, HOOKPOS_CHud_Draw_Caller
+        add     eax, 10
+        jmp     eax
     }
 
-    if (!bSetCenterOfWorld)
-    {
-        _asm
-        {
-            mov     edx, FUNC_CHud_Draw
-            call    edx
-        }
-    }
-    else
-    {
         /*if ( activeEntityForStreaming )
         {
             _asm
@@ -2926,15 +2931,6 @@ void _declspec(naked) HOOK_CHud_Draw_Caller()
             }
         }*/
 
-        if (!bHideRadar)
-        {
-            _asm
-            {
-                mov     edx, 0x58A330
-                call    edx
-            }
-        }
-
         /*if ( activeEntityForStreaming )
         {
             _asm
@@ -2944,16 +2940,6 @@ void _declspec(naked) HOOK_CHud_Draw_Caller()
                 mov     [edi], ebx
             }
         }*/
-    }
-
-    _asm
-    {
-        popad
-
-        mov     eax, HOOKPOS_CHud_Draw_Caller
-        add     eax, 10
-        jmp     eax
-    }
 }
 
 void _declspec(naked) HOOK_FindPlayerCentreOfWorld()
@@ -3050,48 +3036,37 @@ void _declspec(naked) HOOK_CRadar__DrawRadarGangOverlay()
     _asm
     {
         pushad
-    }
+        mov eax, m_pDrawRadarAreasHandler
+        test eax, eax
+        jz skip
 
-    if (m_pDrawRadarAreasHandler) m_pDrawRadarAreasHandler();
+        call dword ptr [eax]
 
-    _asm
-    {
+        skip:
         popad
         retn
     }
 }
 
-CVehicleSAInterface* towingVehicle;
-
 void _declspec(naked) HOOK_Trailer_BreakTowLink()
 {
     _asm
     {
-        mov     towingVehicle, ecx
         pushad
-    }
+        push ecx
+        call CallBreakTowLinkHandler
+        test al, al
+        jz skip
 
-    if (CallBreakTowLinkHandler(towingVehicle))
-    {
-        _asm
-        {
-            popad
-            call    dword ptr [edx+0xF8]
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-        }
-    }
+        popad
+        call dword ptr [edx+0xF8]
 
-    _asm
-    {
-        mov     ecx, HOOKPOS_Trailer_BreakTowLink
-        add     ecx, 6
-        jmp     ecx
+        skip:
+        popad
+
+        mov ecx, HOOKPOS_Trailer_BreakTowLink
+        add ecx, 6
+        jmp ecx
     }
 }
 
@@ -3169,29 +3144,18 @@ void _declspec(naked) HOOK_CExplosion_AddExplosion()
 
         // Store registers for calling this handler
         pushad
-    }
 
-    // Call the explosion handler
-    if (!CallExplosionHandler())
-    {
-        _asm
-        {
-            popad
-            retn // if they return false from the handler, they don't want the explosion to show
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-        }
-    }
+        call CallExplosionHandler
+        test al, al
+        jnz skip
 
-    _asm
-    {
+        popad
+        retn // if they return false from the handler, they don't want the explosion to show
+
+        skip:
+        popad
+
         noexplosionhandler:
-
         // Replaced code
         sub     esp, 0x1C
         push    ebx
@@ -3242,25 +3206,19 @@ void _declspec(naked) HOOK_CTaskComplexJump__CreateSubTask()
         mov     entityEdgeHeight, eax
         mov     eax, pedPosition
         pushad
-    }
 
-    if (processGrab())
-    {
-        _asm
-        {
-            popad
-            mov     eax, 0x67DAD6
-            jmp     eax
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            mov     eax, 0x67DAD1
-            jmp     eax
-        }
+        call processGrab
+        test al, al
+        jz is_false
+
+        popad
+        mov     eax, 0x67DAD6
+        jmp     eax
+
+        is_false:
+        popad
+        mov     eax, 0x67DAD1
+        jmp     eax
     }
 }
 
@@ -3268,6 +3226,7 @@ char*  szCreateFxSystem_ExplosionType = 0;
 DWORD* pCreateFxSystem_Matrix = 0;
 DWORD* pNewCreateFxSystem_Matrix = 0;
 
+static constexpr const char* explosionTypeString = "string";
 void _declspec(naked) HOOK_FxManager_CreateFxSystem()
 {
     _asm
@@ -3282,26 +3241,47 @@ void _declspec(naked) HOOK_FxManager_CreateFxSystem()
 
         // Store all the registers on the stack
         pushad
-    }
 
-    // If we got a matrix and it is an explosion type?
-    if (pCreateFxSystem_Matrix != 0 && strncmp(szCreateFxSystem_ExplosionType, "explosion", 9) == 0)
-    {
+        // If we got a matrix and it is an explosion type?
+        mov eax, pCreateFxSystem_Matrix
+        test eax, eax
+        jz not_explosion
+
+        mov eax, szCreateFxSystem_ExplosionType
+        push 9
+        push eax
+        push offset explosionTypeString
+        call strncmp
+        add esp, 12
+
+        test eax, eax
+        jnz not_explosion
+
         // Copy the matrix so we don't crash if the owner of this matrix is deleted
-        pNewCreateFxSystem_Matrix = (DWORD*)malloc(64);
-        MemCpyFast(pNewCreateFxSystem_Matrix, pCreateFxSystem_Matrix, 64);
+        push 64
+        call malloc
+        add esp, 4
+
+        mov pNewCreateFxSystem_Matrix, eax
+        push 64
+        push pCreateFxSystem_Matrix
+        push pNewCreateFxSystem_Matrix
+        call MemCpyFast
+        add esp, 12
 
         // Add it to the list over FxSystem matrices we've copied
-        AddFxSystemPointer(pNewCreateFxSystem_Matrix);
-    }
-    else
-    {
-        // Use the same pointer. This is not an explosion or it is 0.
-        pNewCreateFxSystem_Matrix = pCreateFxSystem_Matrix;
-    }
+        push pNewCreateFxSystem_Matrix
+        call AddFxSystemPointer
+        add esp, 4
 
-    _asm
-    {
+        jmp hook_end
+
+        not_explosion:
+        // Use the same pointer. This is not an explosion or it is 0.
+        mov eax, pCreateFxSystem_Matrix
+        mov pNewCreateFxSystem_Matrix, eax
+
+        hook_end:
         // Restore the registers
         popad
 
@@ -3331,27 +3311,25 @@ void _declspec(naked) HOOK_FxManager_DestroyFxSystem()
 
         // Store all the registers on the stack
         pushad
-    }
 
-    // Grab the matrix pointer in it
-    pDestroyFxSystem_Matrix = *((DWORD**)(dwDestroyFxSystem_Pointer + 12));
+        mov eax, [eax+12]
+        mov pDestroyFxSystem_Matrix, eax
 
-    // Delete it if it's in our list
-    RemoveFxSystemPointer(pDestroyFxSystem_Matrix);
+        push pDestroyFxSystem_Matrix
+        call RemoveFxSystemPointer
+        add esp, 4
 
-    _asm
-    {
         // Restore the registers
         popad
 
         // The original code we replaced
-        push        ecx
-        push        ebx
-        push        edi
-        mov         edi, [esp+10h]
+        push ecx
+        push ebx
+        push edi
+        mov  edi, [esp+10h]
 
         // Jump back to the rest of the function we hooked
-        jmp         RETURN_FxManager_DestroyFxSystem
+        jmp RETURN_FxManager_DestroyFxSystem
     }
 }
 
@@ -3366,32 +3344,25 @@ bool CCam_ProcessFixed(class CCamSAInterface* pCamInterface)
     return false;
 }
 
-CCamSAInterface* CCam_ProcessFixed_pCam;
-
 void _declspec(naked) HOOK_CCam_ProcessFixed()
 {
     _asm
     {
-        mov CCam_ProcessFixed_pCam, ecx
-    }
+        pushad
+        push ecx
+        call CCam_ProcessFixed
+        test al, al
+        jnz skip
 
-    if (CCam_ProcessFixed(CCam_ProcessFixed_pCam))
-    {
-        _asm
-        {
-            ret 10h
-        }
-    }
-    else
-    {
-        _asm
-        {
-            mov ecx, CCam_ProcessFixed_pCam
-            sub esp, 28h
-            push ebx
-            push ebp
-            jmp RETURN_CCam_ProcessFixed
-        }
+        popad
+        sub esp, 28h
+        push ebx
+        push ebp
+        jmp RETURN_CCam_ProcessFixed
+
+        skip:
+        popad
+        ret 10h
     }
 }
 
@@ -3400,11 +3371,13 @@ void _declspec(naked) HOOK_Render3DStuff()
     _asm
     {
         pushad
-    }
-    if (m_pRender3DStuffHandler) m_pRender3DStuffHandler();
+        mov eax, m_pRender3DStuffHandler
+        test eax, eax
+        jz skip
 
-    _asm
-    {
+        call dword ptr [eax]
+
+        skip:
         popad
         mov eax, FUNC_Render3DStuff
         jmp eax
@@ -3445,24 +3418,19 @@ void _declspec(naked) HOOK_CTaskSimplePlayerOnFoot_ProcessPlayerWeapon()
         mov     eax, [esp+4]
         mov     pProcessPlayerWeaponPed, eax
         pushad
-    }
-    if (ProcessPlayerWeapon())
-    {
-        _asm
-        {
-            popad
-            push    0FFFFFFFFh
-            push    846BCEh
-            jmp     RETURN_CTaskSimplePlayerOnFoot_ProcessPlayerWeapon
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            ret 4
-        }
+
+        call ProcessPlayerWeapon
+        test al, al
+        jz skip
+
+        popad
+        push    0FFFFFFFFh
+        push    846BCEh
+        jmp     RETURN_CTaskSimplePlayerOnFoot_ProcessPlayerWeapon
+
+        skip:
+        popad
+        ret 4
     }
 }
 
@@ -3482,24 +3450,19 @@ void _declspec(naked) HOOK_CPed_IsPlayer()
     {
         mov    pIsPlayerPed, ecx
         pushad
-    }
-    if (IsPlayer())
-    {
-        _asm
-        {
-            popad
-            mov         eax,dword ptr [ecx+598h]
-            jmp         RETURN_CPed_IsPlayer
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            xor         al, al
-            ret
-        }
+
+        call IsPlayer
+        test al, al
+        jz is_false
+
+        popad
+        mov eax,dword ptr [ecx+598h]
+        jmp RETURN_CPed_IsPlayer
+
+        is_false:
+        popad
+        xor al, al
+        ret
     }
 }
 
@@ -3618,12 +3581,9 @@ void _declspec(naked) HOOK_CRunningScript_Process()
     _asm
     {
         pushad
-    }
+    
+        call CRunningScript_Process
 
-    CRunningScript_Process();
-
-    _asm
-    {
         popad
         retn
     }

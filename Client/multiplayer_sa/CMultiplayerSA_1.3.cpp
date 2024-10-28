@@ -342,12 +342,11 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_TestSirenTypeSingle()
         mov dwSirenType, edx
         // Grab our siren vehicle
         mov pVehicleWithTheSiren, esi
-    }
-    //   Call our Get siren type function which edits dwSirenType to our desired type
-    GetVehicleSirenType();
-    _asm
-    {
+
+        // Call our Get siren type function which edits dwSirenType to our desired type
+        call GetVehicleSirenType
         popad
+
         // put our new siren type into edx or old one for default/no sirens
         mov edx, dwSirenType
         // Jump back to the original code
@@ -573,42 +572,38 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_PostPushSirenPositionSingle()
         mov pVehicleWithTheSiren, esi
         // Put edx into our position variable
         mov vecRelativeSirenPosition, edx
-    }
-    bPointLights = false;
-    // Call our main siren Process function
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            // push our siren position
-            push edx
-            push 0FFh
-            mov eax, dwBlue
-            push eax
-            mov eax, dwGreen
-            push eax
-            mov eax, dwRed
-            push eax
 
-            // return back to SA
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionSingle
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // push our siren position
-            push edx
-            push 0FFh
-            push 0FFh
-            push 0
-            push 0
-            // return back to SA
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionSingle
-        }
+        mov bPointLights, 0
+
+        // Call our main siren Process function
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz notedit
+
+        popad
+        // push our siren position
+        push edx
+        push 0FFh
+        mov eax, dwBlue
+        push eax
+        mov eax, dwGreen
+        push eax
+        mov eax, dwRed
+        push eax
+
+        // return back to SA
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionSingle
+
+        notedit:
+        popad
+        // push our siren position
+        push edx
+        push 0FFh
+        push 0FFh
+        push 0
+        push 0
+        // return back to SA
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionSingle
     }
 }
 
@@ -637,12 +632,11 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_TestSirenTypeDual()
         mov pVehicleWithTheSiren, esi
         // Store our post hook default siren type
         mov dwSirenTypePostHook, edi
-    }
-    //   Do our test and edit dwSirenType2 appropriately
-    TestSirenTypeDualDefaultFix();
-    _asm
-    {
+
+        // Do our test and edit dwSirenType2 appropriately
+        call TestSirenTypeDualDefaultFix
         popad
+
         // Move dwSirenType into edi
         mov edi, dwSirenType2
         // Return back to SA
@@ -665,49 +659,44 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_PostPushSirenPositionDualRed()
         mov dwRed, ebp
         mov dwGreen, edx
         mov dwBlue, ecx
-    }
-    bPointLights = false;
 
-    // Call our main process siren function
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            // move our R,G,B components into registers
-            mov ebp, dwRed // Red
-            mov edx, dwGreen // Green
-            mov ecx, dwBlue // Blue
-            push 0FFh
-            // Push our R,G,B components (inverse order)
-            push ecx
-            push edx
-            push ebp
-            // Return control
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual1
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            // Edit our components to get Alpha fixing working.
-            mov ebp, dwRed // Red
-            mov edx, dwGreen // Green
-            mov ecx, dwBlue // Blue
-            push 0FFh
-            // Push our R,G,B components (inverse order)
-            push ecx
-            push edx
-            push ebp
-            // Return control
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual1
-        }
+        mov bPointLights, 0
+
+        // Call our main process siren function
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz notedit
+
+        popad
+        // Push our position
+        push eax
+        // move our R,G,B components into registers
+        mov ebp, dwRed // Red
+        mov edx, dwGreen // Green
+        mov ecx, dwBlue // Blue
+        push 0FFh
+        // Push our R,G,B components (inverse order)
+        push ecx
+        push edx
+        push ebp
+        // Return control
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual1
+
+        notedit:
+        popad
+        // Push our position
+        push eax
+        // Edit our components to get Alpha fixing working.
+        mov ebp, dwRed // Red
+        mov edx, dwGreen // Green
+        mov ecx, dwBlue // Blue
+        push 0FFh
+        // Push our R,G,B components (inverse order)
+        push ecx
+        push edx
+        push ebp
+        // Return control
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual1
     }
 }
 
@@ -725,49 +714,44 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_PostPushSirenPositionDualBlue()
         mov dwRed, ebp
         mov dwGreen, edx
         mov dwBlue, ecx
-    }
-    bPointLights = false;
 
-    // Call our main process siren function
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            // move our R,G,B components into registers
-            mov ecx, dwBlue // Blue
-            mov edx, dwGreen // Green
-            mov ebp, dwRed // Red
-            push 0FFh
-            // Push our R,G,B components (inverse order)
-            push ecx
-            push edx
-            push ebp
-            // Return control
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual2
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            push 0FFh
-            // Edit our components to get Alpha fixing working.
-            mov ecx, dwBlue // Blue
-            mov edx, dwGreen // Green
-            mov ebp, dwRed // Red
-            // Push our R,G,B components (inverse order)
-            push ecx
-            push edx
-            push ebp
-            // Return control
-            JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual2
-        }
+        mov bPointLights, 0
+
+        // Call our main process siren function
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz notedit
+
+        popad
+        // Push our position
+        push eax
+        // move our R,G,B components into registers
+        mov ecx, dwBlue // Blue
+        mov edx, dwGreen // Green
+        mov ebp, dwRed // Red
+        push 0FFh
+        // Push our R,G,B components (inverse order)
+        push ecx
+        push edx
+        push ebp
+        // Return control
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual2
+
+        notedit:
+        popad
+        // Push our position
+        push eax
+        push 0FFh
+        // Edit our components to get Alpha fixing working.
+        mov ecx, dwBlue // Blue
+        mov edx, dwGreen // Green
+        mov ebp, dwRed // Red
+        // Push our R,G,B components (inverse order)
+        push ecx
+        push edx
+        push ebp
+        // Return control
+        JMP RETN_CVehicle_ProcessStuff_PostPushSirenPositionDual2
     }
 }
 
@@ -796,29 +780,20 @@ void _declspec(naked) HOOK_CVehicle_DoesVehicleUseSiren()
         pushad
         // Grab our vehicle interface
         mov pVehicleWithTheSiren, ecx
-    }
-    //   Test our vehicle for sirens
-    if (TestVehicleForSiren())
-    {
-        _asm
-        {
-            popad
-            // Move 1 into AL (true)
-            mov al, 1
-            // Return
-            jmp RETN_CVehicleDoesVehicleUseSirenRetn
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // xor AL (false)
-            xor al, al
-            // Return
-            jmp RETN_CVehicleDoesVehicleUseSirenRetn
-        }
+
+        // Test our vehicle for sirens
+        call TestVehicleForSiren
+        test al, al
+        jnz is_false
+
+        popad
+        mov al, 1
+        jmp RETN_CVehicleDoesVehicleUseSirenRetn
+
+        is_false:
+        popad
+        xor al, al
+        jmp RETN_CVehicleDoesVehicleUseSirenRetn
     }
 }
 bool SirenCheckCameraPosition()
@@ -848,30 +823,25 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_TestCameraPosition()
         pushad
         // Grab our vehicle
         mov pVehicleWithTheSiren, esi
-    }
-    //   Check if we disable or enable the 360 effect
-    if (SirenCheckCameraPosition())
-    {
-        _asm
-        {
-            popad
-            // 360 effect
-            // Carry on
-            jmp RETN_CVehicle_ProcessStuff_TestCameraPosition
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // 180 effect
-            // Replaced code
-            fnstsw ax
-            test ah, 5
-            // Carry on
-            jmp RETN_CVehicle_ProcessStuff_TestCameraPosition2
-        }
+
+        //   Check if we disable or enable the 360 effect
+        call SirenCheckCameraPosition
+        test al, al
+        jnz effect_180
+
+        // 360 effect
+        // Carry on
+        popad
+        jmp RETN_CVehicle_ProcessStuff_TestCameraPosition
+
+        // 180 effect
+        effect_180:
+        popad
+        // Replaced code
+        fnstsw ax
+        test ah, 5
+        // Carry on
+        jmp RETN_CVehicle_ProcessStuff_TestCameraPosition2
     }
 }
 bool DisableVehicleSiren()
@@ -892,24 +862,18 @@ void _declspec(naked) HOOK_CVehicleAudio_ProcessSirenSound()
     _asm
     {
         pushad
-    }
-    if (DisableVehicleSiren())
-    {
-        _asm
-        {
-            popad
-            mov dl, 0
-            jmp RETN_CVehicleAudio_GetVehicleSirenType
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            mov dl, [ecx+42Dh]
-            jmp RETN_CVehicleAudio_GetVehicleSirenType
-        }
+        call DisableVehicleSiren
+        test al, al
+        jz not_disable
+
+        popad
+        mov dl, 0
+        jmp RETN_CVehicleAudio_GetVehicleSirenType
+
+        not_disable:
+        popad
+        mov dl, [ecx+42Dh]
+        jmp RETN_CVehicleAudio_GetVehicleSirenType
     }
 }
 DWORD CALL_CVehicleAudio_ProcessCarHorn = 0x5002C0;
@@ -918,12 +882,7 @@ void _declspec(naked) HOOK_CVehicleAudio_ProcessSirenSound1()
     _asm
     {
         mov pVehicleWithTheSiren, edi
-        pushad
-    }
 
-    _asm
-    {
-        popad
         call CALL_CVehicleAudio_ProcessCarHorn
         jmp RETN_CVehicleAudio_ProcessSirenSound1
     }
@@ -933,12 +892,7 @@ void _declspec(naked) HOOK_CVehicleAudio_ProcessSirenSound2()
     _asm
     {
         mov pVehicleWithTheSiren, edi
-        pushad
-    }
 
-    _asm
-    {
-        popad
         call CALL_CVehicleAudio_ProcessCarHorn
         jmp RETN_CVehicleAudio_ProcessSirenSound2
     }
@@ -948,12 +902,7 @@ void _declspec(naked) HOOK_CVehicleAudio_ProcessSirenSound3()
     _asm
     {
         mov pVehicleWithTheSiren, edi
-        pushad
-    }
 
-    _asm
-    {
-        popad
         call CALL_CVehicleAudio_ProcessCarHorn
         jmp RETN_CVehicleAudio_ProcessSirenSound3
     }
@@ -968,50 +917,44 @@ void _declspec(naked) HOOK_CMotorBike_ProcessStuff_PushSirenPositionBlue()
         // Grab our siren position vector
         lea eax,[esp+0ECh]
         pushad
-        // Grab our vehicle interface
+            // Grab our vehicle interface
         mov pVehicleWithTheSiren, esi
-        // move our position vector pointer into our position variable
+            // move our position vector pointer into our position variable
         mov vecRelativeSirenPosition, eax
-    }
 
-    bPointLights = false;
-    // Call our main process siren function
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            // move our R,G,B components into registers then push them
-            push 0FFh
-            mov ebp, dwBlue
-            push ebp
-            mov ebp, dwGreen
-            push ebp
-            mov eax, dwRed
-            lea ecx, [esi+15h]
-            push eax
-            // Return control
-            JMP RETN_CMotorbike_ProcessStuff_PostPushSirenPositionDual1
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push eax
-            push 0FFh
-            // Push our R,G,B components (inverse order)
-            push ebp
-            push ebp
-            lea ecx, [esi+15h]
-            push eax
-            // Return control
-            JMP RETN_CMotorbike_ProcessStuff_PostPushSirenPositionDual1
-        }
+        mov bPointLights, 0
+
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz not_edit
+
+        popad
+        // Push our position
+        push eax
+        // move our R,G,B components into registers then push them
+        push 0FFh
+        mov ebp, dwBlue
+        push ebp
+        mov ebp, dwGreen
+        push ebp
+        mov eax, dwRed
+        lea ecx, [esi+15h]
+        push eax
+        // Return control
+        JMP RETN_CMotorbike_ProcessStuff_PostPushSirenPositionDual1
+
+        not_edit:
+        popad
+        // Push our position
+        push eax
+        push 0FFh
+        // Push our R,G,B components (inverse order)
+        push ebp
+        push ebp
+        lea ecx, [esi+15h]
+        push eax
+        // Return control
+        JMP RETN_CMotorbike_ProcessStuff_PostPushSirenPositionDual1
     }
 }
 
@@ -1024,49 +967,44 @@ void _declspec(naked) HOOK_CMotorBike_ProcessStuff_PushSirenPositionRed()
         mov pVehicleWithTheSiren, esi
         // move our position vector pointer into our position variable
         mov vecRelativeSirenPosition, edx
-    }
 
-    bPointLights = false;
-    // Call our main process siren function
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push edx
-            // Grab our siren position vector
-            mov [esp+4Fh], al
-            sub bl, al
-            push 0FFh
-            // move our R,G,B components into registers then push them ( Use eax because it's reset after )
-            mov eax, dwBlue
-            push eax
-            mov eax, dwGreen
-            push eax
-            mov eax, dwRed
-            push eax
-            // Return control
-            JMP RETN_CMotorBike_ProcessStuff_PushSirenPositionDualRed
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // Push our position
-            push edx
-            mov [esp+4Fh], al
-            sub bl, al
-            push 0FFh
-            // Push our R,G,B components (inverse order)
-            push eax
-            push 0
-            push 0
-            // Return control
-            JMP RETN_CMotorBike_ProcessStuff_PushSirenPositionDualRed
-        }
+        mov bPointLights, 0
+
+        // Call our main process siren function
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz not_edit
+
+        popad
+        // Push our position
+        push edx
+        // Grab our siren position vector
+        mov [esp+4Fh], al
+        sub bl, al
+        push 0FFh
+        // move our R,G,B components into registers then push them ( Use eax because it's reset after )
+        mov eax, dwBlue
+        push eax
+        mov eax, dwGreen
+        push eax
+        mov eax, dwRed
+        push eax
+        // Return control
+        JMP RETN_CMotorBike_ProcessStuff_PushSirenPositionDualRed
+
+        not_edit:
+        popad
+        // Push our position
+        push edx
+        mov [esp+4Fh], al
+        sub bl, al
+        push 0FFh
+        // Push our R,G,B components (inverse order)
+        push eax
+        push 0
+        push 0
+        // Return control
+        JMP RETN_CMotorBike_ProcessStuff_PushSirenPositionDualRed
     }
 }
 DWORD RETN_CMotorbike_ProcessStuff_TestVehicleModel2 = 0x6BD41B;
@@ -1076,24 +1014,19 @@ void _declspec(naked) HOOK_CMotorbike_ProcessStuff_TestVehicleModel()
     {
         pushad
         mov pVehicleWithTheSiren, esi
-    }
-    if (TestVehicleForSiren())
-    {
-        _asm
-        {
-            popad
-            cmp word ptr [esi+22h], 20Bh
-            jmp RETN_CMotorbike_ProcessStuff_TestVehicleModel2
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            cmp word ptr [esi+22h], 20Bh
-            jmp RETN_CMotorbike_ProcessStuff_TestVehicleModel
-        }
+
+        call TestVehicleForSiren
+        test al, al
+        jz not_test
+
+        popad
+        cmp word ptr [esi+22h], 20Bh
+        jmp RETN_CMotorbike_ProcessStuff_TestVehicleModel2
+
+        not_test:
+        popad
+        cmp word ptr [esi+22h], 20Bh
+        jmp RETN_CMotorbike_ProcessStuff_TestVehicleModel
     }
 }
 DWORD dwValue = 0x858B4C;
@@ -1103,49 +1036,45 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_PushRGBPointLights()
     {
         pushad
         mov esi, pVehicleWithTheSiren
-    }
-    bPointLights = true;
-    if (ProcessVehicleSirenPosition())
-    {
-        _asm
-        {
-            popad
-            mov     edx, dwBlue
-            mov     eax, dwGreen
-            mov     ecx, dwRed
-            mov     [esp+30h], edx
-            fild    dword ptr [esp+30h]
-            mov     [esp+30h], eax
-            mov     eax, [esp+44h]
-            fmul    dword ptr ds:[0858B4Ch]
-            fstp    dword ptr [esp+8]
-            fild    dword ptr [esp+30h]
-            mov     [esp+30h], ecx
-            mov     ecx, [esp+48h]
-            fmul    dword ptr ds:[0858B4Ch]
-            fstp    dword ptr [esp+4]
-            fild    dword ptr [esp+30h]
-            JMP RETN_CVehicle_ProcessStuff_PushRGBPointLights
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            fild    dword ptr [esp+30h]
-            mov     [esp+30h], eax
-            mov     eax, [esp+44h]
-            fmul    dword ptr ds:[0858B4Ch]
-            fstp    dword ptr [esp+8]
-            fild    dword ptr [esp+30h]
-            mov     [esp+30h], ecx
-            mov     ecx, [esp+48h]
-            fmul    dword ptr ds:[0858B4Ch]
-            fstp    dword ptr [esp+4]
-            fild    dword ptr [esp+30h]
-            JMP RETN_CVehicle_ProcessStuff_PushRGBPointLights
-        }
+
+        mov bPointLights, 0
+
+        call ProcessVehicleSirenPosition
+        test al, al
+        jz is_false
+
+        popad
+        mov     edx, dwBlue
+        mov     eax, dwGreen
+        mov     ecx, dwRed
+        mov     [esp+30h], edx
+        fild    dword ptr [esp+30h]
+        mov     [esp+30h], eax
+        mov     eax, [esp+44h]
+        fmul    dword ptr ds:[0858B4Ch]
+        fstp    dword ptr [esp+8]
+        fild    dword ptr [esp+30h]
+        mov     [esp+30h], ecx
+        mov     ecx, [esp+48h]
+        fmul    dword ptr ds:[0858B4Ch]
+        fstp    dword ptr [esp+4]
+        fild    dword ptr [esp+30h]
+        JMP RETN_CVehicle_ProcessStuff_PushRGBPointLights
+
+        is_false:
+        popad
+        fild    dword ptr [esp+30h]
+        mov     [esp+30h], eax
+        mov     eax, [esp+44h]
+        fmul    dword ptr ds:[0858B4Ch]
+        fstp    dword ptr [esp+8]
+        fild    dword ptr [esp+30h]
+        mov     [esp+30h], ecx
+        mov     ecx, [esp+48h]
+        fmul    dword ptr ds:[0858B4Ch]
+        fstp    dword ptr [esp+4]
+        fild    dword ptr [esp+30h]
+        JMP RETN_CVehicle_ProcessStuff_PushRGBPointLights
     }
 }
 
@@ -1155,27 +1084,22 @@ void _declspec(naked) HOOK_CVehicle_ProcessStuff_StartPointLightCode()
     {
         pushad
         mov pVehicleWithTheSiren, esi
-    }
-    if (DoesVehicleHaveSiren())
-    {
-        _asm
-        {
-            popad
-            fld dword ptr [eax+28h]
-            mov edx, [ecx]
-            fadd st, st
-            jmp RETN_CVehicle_ProcessStuff_StartPointLightCode
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            movzx   eax, byte ptr [esp+88h]
-            mov     [esp+50h], eax
-            jmp RETN_CVehicle_ProcessStuff_IgnorePointLightCode
-        }
+
+        call DoesVehicleHaveSiren
+        test al, al
+        jz is_false
+
+        popad
+        fld dword ptr [eax+28h]
+        mov edx, [ecx]
+        fadd st, st
+        jmp RETN_CVehicle_ProcessStuff_StartPointLightCode
+
+        is_false:
+        popad
+        movzx   eax, byte ptr [esp+88h]
+        mov     [esp+50h], eax
+        jmp RETN_CVehicle_ProcessStuff_IgnorePointLightCode
     }
 }
 // Water Cannon Stuff
@@ -1209,32 +1133,28 @@ void _declspec(naked) HOOK_CEventHitByWaterCannon()
         mov eax, [edx]
         mov pPedHitByWaterCannonInterface, esi
         mov pVehicleWithTheCannonMounted, eax
-    }
-    if (TriggerTheEvent())
-    {
-        _asm
-        {
-            popad
-            // Cancel.
-            jmp RETURN_CWaterCannon_PushPeds_RETN_Cancel
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            // Replaced code
-            push ebp
-            push ecx
-            lea ecx, [esp+0B0h]
-            // Call our function
-            call CALL_CEventHitByWaterCannon
-            // Go back to execution
-            jmp RETURN_CWaterCannon_PushPeds_RETN
-        }
+
+        call TriggerTheEvent
+        test al, al
+        jz not_trigger
+
+        popad
+        // Cancel.
+        jmp RETURN_CWaterCannon_PushPeds_RETN_Cancel
+
+        not_trigger:
+        popad
+        // Replaced code
+        push ebp
+        push ecx
+        lea ecx, [esp+0B0h]
+        // Call our function
+        call CALL_CEventHitByWaterCannon
+        // Go back to execution
+        jmp RETURN_CWaterCannon_PushPeds_RETN
     }
 }
+
 CPedSAInterface* pPedUsingJetpack;
 DWORD            dwJetpackPedIntelligence = NULL;
 bool             IsUsingJetPack()
@@ -1279,22 +1199,17 @@ void _declspec(naked) HOOK_CTaskSimpleJetpack_ProcessInput()
     {
         mov pPedUsingJetpack, edi
         pushad
-    }
-    if (AllowJetPack())
-    {
-        _asm
-        {
-            popad
-            jmp RETN_CTaskSimpleJetpack_ProcessInputEnable
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            jmp RETN_CTaskSimpleJetpack_ProcessInputDisabled
-        }
+
+        call AllowJetPack
+        test al, al
+        jz not_allowed
+
+        popad
+        jmp RETN_CTaskSimpleJetpack_ProcessInputEnable
+
+        not_allowed:
+        popad
+        jmp RETN_CTaskSimpleJetpack_ProcessInputDisabled
     }
 }
 
@@ -1304,24 +1219,19 @@ void _declspec(naked) HOOK_CTaskSimplePlayerOnFoot_ProcessWeaponFire()
     {
         pushad
         mov pPedUsingJetpack, esi
-    }
-    if (AllowJetPack())
-    {
-        _asm
-        {
-            popad
-            xor al, al
-            jmp RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire
-        }
-    }
-    else
-    {
-        _asm
-        {
-            popad
-            call RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire_Call
-            jmp RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire
-        }
+
+        call AllowJetPack
+        test al, al
+        jz not_allowed
+
+        popad
+        xor al, al
+        jmp RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire
+
+        not_allowed:
+        popad
+        call RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire_Call
+        jmp RETN_CTaskSimplePlayerOnFoot_ProcessWeaponFire
     }
 }
 
@@ -1349,20 +1259,19 @@ void _declspec(naked) HOOK_CWorld_RemoveFallenPeds()
         jp [RemoveFallenPeds_Cancel]
         pushad
         mov pFallingPedInterface, esi
-    }
-    if (CWorld_Remove_FallenPedsCheck())
-    {
-        _asm
-        {
-            popad
-RemoveFallenPeds_Cancel:
-            jmp RETURN_CWorld_RemoveFallenPeds_Cancel
-        }
-    }
-    _asm
-    {
+
+        call CWorld_Remove_FallenPedsCheck
+        test al, al
+        jz is_false
+
+        popad
+
+        is_false:
         popad
         jmp RETURN_CWorld_RemoveFallenPeds_Cont
+
+        RemoveFallenPeds_Cancel:
+        jmp RETURN_CWorld_RemoveFallenPeds_Cancel
     }
 }
 
@@ -1394,24 +1303,22 @@ void _declspec(naked) HOOK_CWorld_RemoveFallenCars()
     {
         pushad
         mov pFallingVehicleInterface, esi
-    }
-    if (CWorld_Remove_FallenVehiclesCheck())
-    {
-        _asm
-        {
-            popad
-            jmp RETURN_CWorld_RemoveFallenCars_Cancel
-        }
-    }
-    _asm
-    {
+
+        call CWorld_Remove_FallenVehiclesCheck
+        test al, al
+        jz skip
+
+        popad
+        jmp RETURN_CWorld_RemoveFallenCars_Cancel
+
+        skip:
         popad
         mov eax, [esi + 14h]
         test eax, eax
         jz RemoveFallenCars_Cancel
         jmp RETURN_CWorld_RemoveFallenCars_Cont
 
-     RemoveFallenCars_Cancel:
+        RemoveFallenCars_Cancel:
         jmp HOOK_CWorld_RemoveFallenCars_Cont1
     }
 }
@@ -1462,12 +1369,11 @@ void _declspec(naked) HOOK_CVehicleModelInterface_SetClump()
         pushad
         mov pLoadingClump, eax
         mov pLoadingModelInfo, esi
-    }
-    //   Init our supported upgrades structure for this model info
-    CVehicleModelInterface_SetClump();
-    // Perform overwrite sequence and jump back
-    _asm
-    {
+    
+        //   Init our supported upgrades structure for this model info
+        call CVehicleModelInterface_SetClump
+        // Perform overwrite sequence and jump back
+
         popad
         push eax
         mov ecx, esi
@@ -1486,11 +1392,8 @@ void _declspec(naked) HOOK_CBoat_ApplyDamage()
         test eax, 20h
         jz   boatCanBeDamaged
         fst  dword ptr [esi+4C0h]
-    }
-
-boatCanBeDamaged:
-    _asm
-    {
+    
+        boatCanBeDamaged:
         pop eax
         jmp RETURN_CBoat_ApplyDamage
     }
@@ -1567,25 +1470,21 @@ void _declspec(naked) HOOK_CMultiplayerSA_ToggleTyreSmoke()
     {
         pushad
         mov pTyreSmokePed, ecx
-    }
 
-    if (!IsPlayerPedLocal())
-    {
-        _asm
-        {
-            popad
-            jmp dwReturnIgnorePed
-        }
-    }
+        call IsPlayerPedLocal
+        test al, al
+        jnz skip
 
-    _asm
-    {
+        popad
+        jmp dwReturnIgnorePed
+
+        skip:
         popad
         test eax, 20000h
         jnz ToggleTyreSmoke_Cancel
         jmp dwReturnAddressTyreSmoke
 
-    ToggleTyreSmoke_Cancel:
+        ToggleTyreSmoke_Cancel:
         jmp dwReturnIgnorePed
     }
 }
@@ -1660,16 +1559,16 @@ void _declspec(naked) HOOK_CProjectile_FixExplosionLocation()
     {
         mov pExplosionEntity, esi
         pushad
-    }
-    UpdateExplosionLocation();
-    _asm
-    {
+
+        call UpdateExplosionLocation
+
         popad
         mov eax, [esi+14h]
         test eax, eax
         jz skip
         add eax, 30h
         jmp RETURN_CProjectile_FixExplosionLocation
+
 skip:
         lea eax, [esi+4]
         jmp RETURN_CProjectile_FixExplosionLocation

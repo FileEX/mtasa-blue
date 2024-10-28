@@ -64,12 +64,9 @@ static void _declspec(naked) HOOK_CAutomobile_ProcessControl_VehicleDamage()
     {
         pushad
         mov pCollisionVehicle, ecx
-    }
 
-    TriggerVehicleCollisionEvent();
+        call TriggerVehicleCollisionEvent
 
-    _asm
-    {
         popad
         mov     ecx, pCollisionVehicle
         mov     esi, pCollisionVehicle
@@ -97,12 +94,9 @@ static void _declspec(naked) HOOK_CBike_ProcessControl_VehicleDamage()
     {
         pushad
         mov pCollisionVehicle, ecx
-    }
+    
+        call TriggerVehicleCollisionEvent
 
-    TriggerVehicleCollisionEvent();
-
-    _asm
-    {
         popad
         mov     ecx, pCollisionVehicle
         mov     esi, pCollisionVehicle
@@ -131,12 +125,9 @@ static void _declspec(naked) HOOK_CBoat_ProcessControl_VehicleDamage()
     {
         pushad
         mov pCollisionVehicle, ecx
-    }
+    
+        call TriggerVehicleCollisionEvent
 
-    TriggerVehicleCollisionEvent();
-
-    _asm
-    {
         popad
         mov     ecx, pCollisionVehicle
         mov     esi, pCollisionVehicle
@@ -163,12 +154,9 @@ static void _declspec(naked) HOOK_CTrain_ProcessControl_VehicleDamage()
     {
         pushad
         mov pCollisionVehicle, esi
-    }
 
-    TriggerVehicleCollisionEvent();
+        call TriggerVehicleCollisionEvent
 
-    _asm
-    {
         popad
         mov     esi, pCollisionVehicle
         mov     al, ds:[0BA6728h]
