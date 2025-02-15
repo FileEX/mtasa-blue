@@ -13,6 +13,7 @@
 #include <game/CColPoint.h>
 #include <game/CObjectGroupPhysicalProperties.h>
 #include <game/CStreaming.h>
+#include <game/CPtrNodeSingleLinkPool.h>
 #include <lua/CLuaFunctionParser.h>
 #include "CLuaEngineDefs.h"
 
@@ -883,6 +884,9 @@ int CLuaEngineDefs::EngineRequestModel(lua_State* luaVM)
                                 break;
                             case eClientModelType::OBJECT:
                                 usParentID = 1337;            // BinNt07_LA (trash can)
+                                break;
+                            case eClientModelType::OBJECT_DAMAGEABLE:
+                                usParentID = 994;             // lhouse_barrier2
                                 break;
                             case eClientModelType::VEHICLE:
                                 usParentID = VT_LANDSTAL;
@@ -2493,6 +2497,10 @@ bool CLuaEngineDefs::EngineSetPoolCapacity(lua_State* luaVM, ePools pool, size_t
         case ePools::BUILDING_POOL:
         {
             return m_pBuildingManager->SetPoolCapacity(newSize);
+        }
+        case ePools::POINTER_SINGLE_LINK_POOL:
+        {
+            return g_pGame->GetPools()->GetPtrNodeSingleLinkPool().Resize(newSize);
         }
         default:
             throw std::invalid_argument("Can not change this pool capacity");

@@ -51,6 +51,17 @@ bool CClientModel::Allocate(ushort usParentID)
                 return true;
             }
             break;
+        case eClientModelType::OBJECT_DAMAGEABLE:
+        {
+            bool isValidModel = g_pClientGame->GetObjectManager()->IsValidModel(usParentID);
+            bool isDamagable = pParentModelInfo->IsDamageableAtomic();
+            if (isValidModel && isDamagable)
+            {
+                pModelInfo->MakeObjectDamageableModel(usParentID);
+                return true;
+            }
+            break;
+        }
         case eClientModelType::CLUMP:
             if (g_pClientGame->GetObjectManager()->IsValidModel(usParentID))
             {
@@ -115,6 +126,7 @@ void CClientModel::RestoreEntitiesUsingThisModel()
     {
         case eClientModelType::PED:
         case eClientModelType::OBJECT:
+        case eClientModelType::OBJECT_DAMAGEABLE:
         case eClientModelType::CLUMP:
         case eClientModelType::TIMED_OBJECT:
         case eClientModelType::VEHICLE:
@@ -180,6 +192,7 @@ void CClientModel::RestoreDFF(CModelInfo* pModelInfo)
         }
         case eClientModelType::CLUMP:
         case eClientModelType::OBJECT:
+        case eClientModelType::OBJECT_DAMAGEABLE:
         case eClientModelType::TIMED_OBJECT:
         {
             const auto&    objects = &g_pClientGame->GetManager()->GetObjectManager()->GetObjects();
