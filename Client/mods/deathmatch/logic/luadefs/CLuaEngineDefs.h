@@ -102,6 +102,8 @@ public:
     static bool EngineSetModelAnimation(std::uint16_t modelId, std::optional<std::variant<CClientIFP*, bool>> ifpOrNil, std::optional<std::string> animationName);
     static void EngineRestoreModelAnimation(std::uint16_t modelId);
 
+    static bool EngineConvertModelToType(std::uint32_t model, eClientModelType type);
+
 private:
     static void AddEngineColClass(lua_State* luaVM);
     static void AddEngineTxdClass(lua_State* luaVM);

@@ -219,6 +219,14 @@ public:
     // Init the supported upgrades structure
     virtual void InitialiseSupportedUpgrades(RpClump* pClump) = 0;
 
+    virtual bool                       ConvertToClump() = 0;
+    virtual bool                       ConvertToAtomic(bool damageable) = 0;
+    virtual bool                       ConvertToTimedObject() = 0;
+    virtual CBaseModelInfoSAInterface* GetLastConversionInterface() const noexcept = 0;
+    virtual void                       SetLastConversionInterface(CBaseModelInfoSAInterface* lastInterface) noexcept = 0;
+    virtual CBaseModelInfoSAInterface* GetOriginalInterface() const = 0;
+    virtual bool                       IsSameModelType() = 0;
+
     // ONLY use for peds
     virtual void GetVoice(short* psVoiceType, short* psVoice) = 0;
     virtual void GetVoice(const char** pszVoiceType, const char** szVoice) = 0;
