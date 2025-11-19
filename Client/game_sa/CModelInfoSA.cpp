@@ -1528,7 +1528,7 @@ void CModelInfoSA::StaticResetModelAnimations()
         if (modelInfo)
         {
             modelInfo->DisableObjectAnimation(false);
-            modelInfo->SetObjectAnimation(nullptr, 0);
+            modelInfo->SetObjectAnimation(nullptr, 0, 0);
         }
 
         CBaseModelInfoSAInterface* modelInfoInterface = modelInfo->GetInterface();
@@ -2394,6 +2394,7 @@ RpClump* __fastcall CClumpModelInfoSAInterface::CreateInstance(CClumpModelInfoSA
     {
         CAnimBlendHierarchySAInterface* anim = nullptr;
         auto* modelInfo = pGame->GetModelInfo(static_cast<CBaseModelInfoSAInterface*>(clumpModelInfo));
+        eAnimationFlags                 flags = ANIMATION_IS_LOOPED;
 
         if (clumpModelInfo->m_nAnimFileIndex != -1)
         {
@@ -2407,12 +2408,15 @@ RpClump* __fastcall CClumpModelInfoSAInterface::CreateInstance(CClumpModelInfoSA
             }
         }
         else if (modelInfo)
+        {
             anim = modelInfo->GetObjectAnimation();
+            flags = modelInfo->GetObjectAnimationFlags();
+        }
 
         if (anim)
         {
             RpAnimBlendClumpInit(clump);
-            pGame->GetAnimManager()->BlendAnimation(clump, anim, ANIMATION_IS_LOOPED, 1.0f);
+            pGame->GetAnimManager()->BlendAnimation(clump, anim, flags, 1.0f);
         }
     }
 
