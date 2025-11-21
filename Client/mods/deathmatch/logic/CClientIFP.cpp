@@ -832,7 +832,6 @@ constexpr bool CClientIFP::IsKeyFramesTypeRoot(eFrameType iFrameType)
 
 std::int32_t CClientIFP::GetBoneIDFromName(const SString& strBoneName)
 {
-    // Some cutscene animations have different names like Root suitcase-1, etc
     if (strBoneName == "root")
         return eBoneType::NORMAL;
     if (strBoneName == "normal")
@@ -1162,7 +1161,6 @@ SString CClientIFP::GetCorrectBoneNameFromID(const std::int32_t& iBoneID)
 
 SString CClientIFP::GetCorrectBoneNameFromName(const SString& strBoneName)
 {
-    // Some cutscene animations have different names like Root suitcase-1, etc
     if (strBoneName == "root")
         return "Normal";
     if (strBoneName == "normal")
