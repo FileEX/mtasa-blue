@@ -136,8 +136,6 @@ public:
 
     virtual std::uint32_t RpGeometryGet2dFxCount(RpGeometry* geometry) = 0;
     virtual RpAtomic*     Get2DEffectAtomic(RpClump* clump) = 0;
-    virtual bool     RightSizeTxd(const SString& strInTxdFilename, const SString& strOutTxdFilename, uint uiSizeLimit) = 0;
-    virtual void     TxdForceUnload(ushort usTxdId, bool bDestroyTextures) = 0;
 
     virtual void CMatrixToRwMatrix(const CMatrix& mat, RwMatrix& rwOutMatrix) = 0;
     virtual void RwMatrixToCMatrix(const RwMatrix& rwMatrix, CMatrix& matOut) = 0;
