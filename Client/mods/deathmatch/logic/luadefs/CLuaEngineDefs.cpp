@@ -522,11 +522,13 @@ int CLuaEngineDefs::EngineLoadIFP(lua_State* luaVM)
 {
     SString input;
     SString blockName;
+    std::vector<SString> uncompressedAnims;
 
     CScriptArgReader argStream(luaVM);
     // Grab the IFP filename or data
     argStream.ReadString(input);
     argStream.ReadString(blockName);
+    argStream.ReadStringTable(uncompressedAnims);
 
     if (!argStream.HasErrors())
     {
@@ -555,7 +557,7 @@ int CLuaEngineDefs::EngineLoadIFP(lua_State* luaVM)
                 if (bIsRawData || CResourceManager::ParseResourcePathInput(input, pResource, &filePath))
                 {
                     std::shared_ptr<CClientIFP> pIFP =
-                        CIFPEngine::LoadIFP(pResource, m_pManager, std::move(blockName), bIsRawData, bIsRawData ? std::move(input) : std::move(filePath));
+                        CIFPEngine::LoadIFP(pResource, m_pManager, std::move(blockName), bIsRawData, bIsRawData ? std::move(input) : std::move(filePath), std::move(uncompressedAnims));
 
                     if (pIFP)
                     {
