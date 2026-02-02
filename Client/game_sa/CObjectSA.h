@@ -15,6 +15,7 @@
 #include "CPhysicalSA.h"
 
 class CFireSAInterface;
+class CColModelSAInterface;
 
 #define FUNC_CObject_Create             0x5A1F60
 #define FUNC_CObject_Explode            0x5A1340
@@ -125,6 +126,7 @@ private:
     bool          m_bIsAGangTag;
     CVector       m_vecScale;
     bool          m_preRenderRequired = false;
+    CColModelSAInterface* m_customCol{};
 
 public:
     static void StaticSetHooks();
@@ -140,6 +142,8 @@ public:
     void  SetHealth(float fHealth);
     float GetHealth();
     void  SetModelIndex(unsigned long ulModel);
+
+    CColModelSAInterface* GetCustomCol() const noexcept { return m_customCol; }
 
     void          SetPreRenderRequired(bool required) { m_preRenderRequired = required; }
     bool          GetPreRenderRequired() { return m_preRenderRequired; }

@@ -16,8 +16,11 @@
 #include "CRopesSA.h"
 #include "CWorldSA.h"
 #include "CFireManagerSA.h"
+#include "CColModelSA.h"
 
 extern CGameSA* pGame;
+
+std::unordered_map<std::uint32_t, CColModelSAInterface*> originalCollisions{};
 
 static void CObject_PreRender(CObjectSAInterface* objectInterface)
 {
@@ -43,6 +46,161 @@ static void __declspec(naked) HOOK_CCObject_PreRender()
     }
 }
 
+static void ReplaceCol(CEntitySAInterface* entity)
+{
+    if (!entity)
+        return;
+
+    if (entity->nType == 4)
+    {
+        auto object = pGame->GetPools()->GetObject((DWORD*)entity);
+        if (object && object->pEntity)
+        {
+            CModelInfo* modelInfo = pGame->GetModelInfo(entity->m_nModelIndex);
+            if (modelInfo && object->pEntity->GetCustomCol())
+            {
+                modelInfo->GetInterface()->pColModel = object->pEntity->GetCustomCol();
+            }
+        }
+    }
+}
+
+static void RestoreCol(CEntitySAInterface* entity)
+{
+    if (!entity || entity->nType != 4)
+        return;
+
+    if (MapFind(originalCollisions, entity->m_nModelIndex))
+    {
+        CModelInfo* modelInfo = pGame->GetModelInfo(entity->m_nModelIndex);
+        if (modelInfo)
+        {
+            modelInfo->GetInterface()->pColModel = MapGet(originalCollisions, entity->m_nModelIndex);
+        }
+    }
+}
+
+static std::uintptr_t         ProcessShift_BACK = 0x568908 + 7;
+static void __declspec(naked) HOOK_CWrold_ProcessShift()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE
+
+    _asm
+    {
+        push esi
+
+        push esi
+        call ReplaceCol
+        add esp, 4
+
+        mov eax, [esi]
+        mov ecx, esi
+        call dword ptr [eax+30h]
+
+        push eax
+
+        push esi
+        call RestoreCol
+        add esp, 4
+
+        pop eax
+        pop esi
+        jmp ProcessShift_BACK
+    }
+}
+
+static std::uintptr_t        ProcessCollision_BACK = 0x568829 + 5 + 3;
+static void _declspec(naked) HOOK_CWorld_ProcessCollision()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE
+
+    _asm
+    {
+        mov ecx, esi
+        mov [esi+1Ch], eax
+
+        push esi
+        push edx
+
+        push esi
+        call ReplaceCol
+        add esp, 4
+
+        pop edx
+
+        call dword ptr [edx+2Ch]
+
+        push eax
+
+        push esi
+        call RestoreCol
+        add esp, 4
+
+        pop eax
+        pop esi
+        jmp ProcessCollision_BACK
+    }
+}
+
+static constexpr std::uintptr_t ProcessCollision_BACK2 = 0x5687CF + 7;
+
+static void _declspec(naked) HOOK_CWorld_ProcessCollision2()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE
+
+     _asm
+    {
+        mov edx, [esi]
+        mov ecx, esi
+
+        push esi
+        push edx
+
+        push esi
+        call ReplaceCol
+        add esp, 4
+
+        pop edx
+        call dword ptr [edx+2Ch]
+
+        push esi
+        call RestoreCol
+        add esp, 4
+
+        pop esi
+        jmp ProcessCollision_BACK2
+    }
+}
+
+static std::uintptr_t        ProcessCollision_BACK3 = 0x56876F + 7;
+static void _declspec(naked) HOOK_CWorld_ProcessCollision3()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE
+
+    _asm
+    {
+        mov edx, [esi]
+
+        push esi
+        push edx
+
+        push esi
+        call ReplaceCol
+        add esp, 4
+
+        pop edx
+        mov ecx, esi
+        call dword ptr [edx+2Ch]
+
+        push esi
+        call RestoreCol
+        add esp, 4
+
+        pop esi
+        jmp ProcessCollision_BACK3
+    }
+}
+
 void CObjectSA::StaticSetHooks()
 {
     // Patch CObject::PreRender. We don't want the scaling code to execute
@@ -53,6 +211,11 @@ void CObjectSA::StaticSetHooks()
     std::uint8_t bytes[5] = {0x5E, 0x83, 0xC4, 0x10, 0xC3};
     MemCpy((void*)0x59FE0E, bytes, sizeof(bytes));
     HookInstall(0x59FD50, HOOK_CCObject_PreRender);
+
+    HookInstall(0x568908, HOOK_CWrold_ProcessShift, 7);
+    HookInstall(0x568829, HOOK_CWorld_ProcessCollision, 8);
+    HookInstall(0x5687CF, HOOK_CWorld_ProcessCollision2, 7);
+    HookInstall(0x56876F, HOOK_CWorld_ProcessCollision3, 7);
 }
 
 // GTA uses this to pass to CFileLoader::LoadObjectInstance the info it wants to load
@@ -273,11 +436,82 @@ bool CObjectSA::IsGlass()
     return bResult;
 }
 
+static inline float VecLength(const CVector& v)
+{
+    return std::sqrt(v.fX * v.fX + v.fY * v.fY + v.fZ * v.fZ);
+}
+
 void CObjectSA::SetScale(float fX, float fY, float fZ)
 {
     m_vecScale = CVector(fX, fY, fZ);
     GetObjectInterface()->bUpdateScale = true;
     GetObjectInterface()->fScale = std::max(fX, std::max(fY, fZ));
+
+    auto modelInfo = pGame->GetModelInfo(GetModelIndex());
+    if (!modelInfo) return;
+
+    auto* interf = modelInfo->GetInterface();
+    CColModelSAInterface* newCollision = interf->pColModel;
+
+    if (!MapFind(originalCollisions, GetModelIndex()))
+    {
+        if (!interf->pColModel || !interf->pColModel->m_data)
+            return;
+
+        MapSet(originalCollisions, GetModelIndex(), interf->pColModel);
+
+        newCollision = new CColModelSAInterface();
+        ((void(__thiscall*)(CColModelSAInterface*, int, int, int, int, int, bool))0x40F870)(newCollision, interf->pColModel->m_data->m_numSpheres, interf->pColModel->m_data->m_numBoxes, interf->pColModel->m_data->m_numSuspensionLines, interf->pColModel->m_data->m_numShadowVertices, interf->pColModel->m_data->m_numTriangles, interf->pColModel->m_data->m_usesDisks);
+
+        interf->pColModel = newCollision;
+        m_customCol = newCollision;
+    }
+
+    CColModelSAInterface* defaultCollision = MapGet(originalCollisions, GetModelIndex());
+
+    newCollision->m_bounds.m_vecMax.fX = defaultCollision->m_bounds.m_vecMax.fX * fX;
+    newCollision->m_bounds.m_vecMax.fY = defaultCollision->m_bounds.m_vecMax.fY * fY;
+    newCollision->m_bounds.m_vecMax.fZ = defaultCollision->m_bounds.m_vecMax.fZ * fZ;
+
+    newCollision->m_bounds.m_vecMin.fX = defaultCollision->m_bounds.m_vecMin.fX * fX;
+    newCollision->m_bounds.m_vecMin.fY = defaultCollision->m_bounds.m_vecMin.fY * fY;
+    newCollision->m_bounds.m_vecMin.fZ = defaultCollision->m_bounds.m_vecMin.fZ * fZ;
+
+    bool isUniformScale = (fX == fY == fZ);
+
+    CVector scaledMin = newCollision->m_bounds.m_vecMin;
+    CVector scaledMax = newCollision->m_bounds.m_vecMax;
+
+    CVector size = CVector(scaledMax.fX - scaledMin.fX, scaledMax.fY - scaledMin.fY, scaledMax.fZ - scaledMin.fZ);
+
+    // --- Œrodek sfery = œrodek AABB ---
+    newCollision->m_sphere.m_center = CVector((scaledMin.fX + scaledMax.fX) * 0.5f, (scaledMin.fY + scaledMax.fY) * 0.5f, (scaledMin.fZ + scaledMax.fZ) * 0.5f);
+
+    // --- Promieñ sfery = po³owa najd³u¿szego wymiaru ---
+    CVector diff;
+    diff.fX = scaledMax.fX - scaledMin.fX;
+    diff.fY = scaledMax.fY - scaledMin.fY;
+    diff.fZ = scaledMax.fZ - scaledMin.fZ;
+    newCollision->m_sphere.m_radius = 0.5f * VecLength(diff);
+
+    CColDataSA* data = newCollision->m_data;
+    CColDataSA* originalData = defaultCollision->m_data;
+    if (data)
+    {
+        for (int i = 0; i < data->m_numBoxes; i++)
+        {
+            data->m_boxes[i].m_vecMax.fX = originalData->m_boxes[i].m_vecMax.fX * fX;
+            data->m_boxes[i].m_vecMax.fY = originalData->m_boxes[i].m_vecMax.fY * fY;
+            data->m_boxes[i].m_vecMax.fZ = originalData->m_boxes[i].m_vecMax.fZ * fZ;
+
+            data->m_boxes[i].m_vecMin.fX = originalData->m_boxes[i].m_vecMin.fX * fX;
+            data->m_boxes[i].m_vecMin.fY = originalData->m_boxes[i].m_vecMin.fY * fY;
+            data->m_boxes[i].m_vecMin.fZ = originalData->m_boxes[i].m_vecMin.fZ * fZ;
+        }
+    }
+
+    pGame->GetWorld()->Remove(m_pInterface, eDebugCaller::CObject_Destructor);
+    pGame->GetWorld()->Add(m_pInterface, eDebugCaller::CObject_Constructor);
 }
 
 CVector* CObjectSA::GetScale()
