@@ -14,10 +14,6 @@
 #include <CVector.h>
 #include <game/CCheckpoint.h>
 
-#define HOOKPOS_CCheckpoint__Render  0x725E56
-#define HOOKSIZE_CCheckpoint__Render 0x5
-static constexpr std::uint32_t RETURN_CCheckpoint__Render = 0x725E5B;
-
 #define C3dMarkers_DirectionArrowSet 0x721140
 
 class CCheckpointSAInterface
@@ -29,7 +25,7 @@ public:
     DWORD   m_nIdentifier;
     DWORD   rwColour;
     WORD    m_nPulsePeriod;
-    short   m_nRotateRate;            // deg per frame (in either direction)
+    short   m_nRotateRate;  // deg per frame (in either direction)
     CVector m_pos;
     CVector m_pointDir;
     float   m_fPulseFraction;
@@ -56,8 +52,8 @@ public:
     CVector*           GetPosition();
     void               SetPointDirection(CVector* vecPointDirection);
     CVector*           GetPointDirection();
-    DWORD              GetType();                      // need enum?
-    void               SetType(WORD wType);            // doesn't work propperly (not virtualed)
+    DWORD              GetType();            // need enum?
+    void               SetType(WORD wType);  // doesn't work propperly (not virtualed)
     bool               IsActive();
     void               Activate();
     DWORD              GetIdentifier();
@@ -69,7 +65,7 @@ public:
     float              GetSize();
     void               SetSize(float fSize);
     void               SetCameraRange(float fCameraRange);
-    void               SetPulseFraction(float fPulseFraction);            // doesn't work propperly (not virtualed)
+    void               SetPulseFraction(float fPulseFraction);  // doesn't work propperly (not virtualed)
     float              GetPulseFraction();
     void               Remove();
     SColor             GetTargetArrowColor() const noexcept override { return m_targetArrowColor; };

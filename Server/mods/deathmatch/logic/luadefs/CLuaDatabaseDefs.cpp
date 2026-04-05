@@ -292,7 +292,7 @@ int CLuaDatabaseDefs::DbConnect(lua_State* luaVM)
                 // Set default values if required
                 GetOption<CDbOptionsMap>(strOptions, "log", bLoggingEnabled, 1);
                 GetOption<CDbOptionsMap>(strOptions, "tag", strLogTag, "script");
-                GetOption<CDbOptionsMap>(strOptions, "queue", strQueueName, (strType == "mysql") ? strHost : DB_SQLITE_QUEUE_NAME_DEFAULT);
+                GetOption<CDbOptionsMap>(strOptions, "queue", strQueueName, (strType == "mysql") ? strHost : SStringX(DB_SQLITE_QUEUE_NAME_DEFAULT));
                 SetOption<CDbOptionsMap>(strOptions, "log", bLoggingEnabled);
                 SetOption<CDbOptionsMap>(strOptions, "tag", strLogTag);
                 SetOption<CDbOptionsMap>(strOptions, "queue", strQueueName);
@@ -526,7 +526,7 @@ void PushRegistryResultTable(lua_State* luaVM, const CRegistryResultData* Result
 
             // Push the column name
             lua_pushlstring(luaVM, Result->ColNames[j].c_str(), Result->ColNames[j].size());
-            switch (cell.nType)            // push the value with the right type
+            switch (cell.nType)  // push the value with the right type
             {
                 case SQLITE_INTEGER:
                     lua_pushnumber(luaVM, static_cast<double>(cell.nVal));
@@ -609,15 +609,15 @@ int CLuaDatabaseDefs::DbPoll(lua_State* luaVM)
                 lua_pushnumber(luaVM, i + 1);
                 lua_newtable(luaVM);
                 {
-                    lua_pushnumber(luaVM, 1);            // [1] - table of result rows
+                    lua_pushnumber(luaVM, 1);  // [1] - table of result rows
                     PushRegistryResultTable(luaVM, Result);
                     lua_settable(luaVM, -3);
 
-                    lua_pushnumber(luaVM, 2);            // [2] - NumAffectedRows
+                    lua_pushnumber(luaVM, 2);  // [2] - NumAffectedRows
                     lua_pushnumber(luaVM, Result->uiNumAffectedRows);
                     lua_settable(luaVM, -3);
 
-                    lua_pushnumber(luaVM, 3);            // [3] - LastInsertId
+                    lua_pushnumber(luaVM, 3);  // [3] - LastInsertId
                     lua_pushnumber(luaVM, static_cast<double>(Result->ullLastInsertId));
                     lua_settable(luaVM, -3);
                 }
@@ -687,10 +687,10 @@ int CLuaDatabaseDefs::ExecuteSQLQuery(lua_State* luaVM)
             {
                 const CRegistryResultRow& row = *iter;
                 // for ( int i = 0; i < Result.nRows; i++ ) {
-                lua_newtable(luaVM);                     // new table
-                lua_pushnumber(luaVM, i + 1);            // row index number (starting at 1, not 0)
-                lua_pushvalue(luaVM, -2);                // value
-                lua_settable(luaVM, -4);                 // refer to the top level table
+                lua_newtable(luaVM);           // new table
+                lua_pushnumber(luaVM, i + 1);  // row index number (starting at 1, not 0)
+                lua_pushvalue(luaVM, -2);      // value
+                lua_settable(luaVM, -4);       // refer to the top level table
                 for (int j = 0; j < Result->nColumns; j++)
                 {
                     const CRegistryResultCell& cell = row[j];
@@ -699,7 +699,7 @@ int CLuaDatabaseDefs::ExecuteSQLQuery(lua_State* luaVM)
 
                     // Push the column name
                     lua_pushlstring(luaVM, Result->ColNames[j].c_str(), Result->ColNames[j].size());
-                    switch (cell.nType)            // push the value with the right type
+                    switch (cell.nType)  // push the value with the right type
                     {
                         case SQLITE_INTEGER:
                             lua_pushnumber(luaVM, static_cast<double>(cell.nVal));
@@ -718,7 +718,7 @@ int CLuaDatabaseDefs::ExecuteSQLQuery(lua_State* luaVM)
                     }
                     lua_settable(luaVM, -3);
                 }
-                lua_pop(luaVM, 1);            // pop the inner table
+                lua_pop(luaVM, 1);  // pop the inner table
             }
             return 1;
         }
@@ -765,10 +765,10 @@ int CLuaDatabaseDefs::ExecuteSQLSelect(lua_State* luaVM)
             {
                 const CRegistryResultRow& row = *iter;
                 //            for ( int i = 0; i < Result.nRows; i++ ) {
-                lua_newtable(luaVM);                     // new table
-                lua_pushnumber(luaVM, i + 1);            // row index number (starting at 1, not 0)
-                lua_pushvalue(luaVM, -2);                // value
-                lua_settable(luaVM, -4);                 // refer to the top level table
+                lua_newtable(luaVM);           // new table
+                lua_pushnumber(luaVM, i + 1);  // row index number (starting at 1, not 0)
+                lua_pushvalue(luaVM, -2);      // value
+                lua_settable(luaVM, -4);       // refer to the top level table
                 for (int j = 0; j < Result->nColumns; j++)
                 {
                     const CRegistryResultCell& cell = row[j];
@@ -777,7 +777,7 @@ int CLuaDatabaseDefs::ExecuteSQLSelect(lua_State* luaVM)
 
                     // Push the column name
                     lua_pushlstring(luaVM, Result->ColNames[j].c_str(), Result->ColNames[j].size());
-                    switch (cell.nType)            // push the value with the right type
+                    switch (cell.nType)  // push the value with the right type
                     {
                         case SQLITE_INTEGER:
                             lua_pushnumber(luaVM, static_cast<double>(cell.nVal));
@@ -796,7 +796,7 @@ int CLuaDatabaseDefs::ExecuteSQLSelect(lua_State* luaVM)
                     }
                     lua_settable(luaVM, -3);
                 }
-                lua_pop(luaVM, 1);            // pop the inner table
+                lua_pop(luaVM, 1);  // pop the inner table
             }
             return 1;
         }

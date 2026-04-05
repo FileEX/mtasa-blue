@@ -26,11 +26,13 @@ void CFireSA::Extinguish()
 {
     DWORD dwFunction = FUNC_Extinguish;
     DWORD dwPointer = (DWORD)internalInterface;
-    _asm
+    // clang-format off
+    __asm
     {
         mov     ecx, dwPointer
         call    dwFunction
     }
+    // clang-format on
     internalInterface->bActive = false;
 }
 
@@ -184,13 +186,15 @@ void CFireSA::Ignite()
     CVector* vecPosition = GetPosition();
     DWORD    dwFunc = FUNC_CreateFxSysForStrength;
     DWORD    dwThis = (DWORD)internalInterface;
-    _asm
+    // clang-format off
+    __asm
     {
         mov     ecx, dwThis
         push    0
         push    vecPosition
         call    dwFunc
     }
+    // clang-format on
 
     internalInterface->bBeingExtinguished = 0;
     internalInterface->bFirstGeneration = 1;
@@ -234,26 +238,34 @@ static void AbortFireTask(CEntitySAInterface* entityOnFire, DWORD returnAddress)
     taskManager->RemoveTaskSecondary(TASK_SECONDARY_PARTIAL_ANIM, TASK_SIMPLE_PLAYER_ON_FIRE);
 }
 
-#define HOOKPOS_CFire_Extinguish 0x539429
+#define HOOKPOS_CFire_Extinguish  0x539429
 #define HOOKSIZE_CFire_Extinguish 6
-static constexpr std::uintptr_t CONTINUE_CFire_Extinguish = 0x53942F;
-static void _declspec(naked) HOOK_CFire_Extinguish()
+static constexpr intptr_t     CONTINUE_CFire_Extinguish = 0x53942F;
+static void __declspec(naked) HOOK_CFire_Extinguish()
 {
-    _asm
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+
+    // clang-format off
+    __asm
     {
-        mov [eax+730h], edi
+        mov     [eax+730h], edi
 
-        push ebx
-        mov ebx, [esp+0Ch]
+        push    ebx
+        mov     ebx, [esp+12]
+        push    edi
+        push    esi
 
-        push ebx
-        push eax
-        call AbortFireTask
-        add esp, 8
+        push    ebx     // returnAddress
+        push    eax     // entityOnFire
+        call    AbortFireTask
+        add     esp, 8
 
-        pop ebx
-        jmp CONTINUE_CFire_Extinguish
+        pop     esi
+        pop     edi
+        pop     ebx
+        jmp     CONTINUE_CFire_Extinguish
     }
+    // clang-format on
 }
 
 void CFireSA::StaticSetHooks()

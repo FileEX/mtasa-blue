@@ -49,23 +49,27 @@ void CProjectileInfoSA::RemoveProjectile(CProjectileInfo* pProjectileInfo, CProj
             if (bBlow)
             {
                 DWORD dwFunc = FUNC_RemoveProjectile;
-                _asm
+                // clang-format off
+                __asm
                 {
                     push    projectileInterface
                     push    projectileInfoInterface
                     call    dwFunc
                     add     esp, 8
                 }
+                // clang-format on
             }
             else
             {
                 DWORD dwFunc = FUNC_RemoveIfThisIsAProjectile;
-                _asm
+                // clang-format off
+                __asm
                 {
                     push   projectileInterface
                     call   dwFunc
                     add    esp, 4
                 }
+                // clang-format on
             }
         }
     }
@@ -111,7 +115,8 @@ bool CProjectileInfoSA::AddProjectile(CEntity* creator, eWeaponType eWeapon, CVe
             targetVC = pTargetEntitySA->GetInterface();
     }
 
-    _asm
+    // clang-format off
+    __asm
     {
         push    eax
 
@@ -130,6 +135,7 @@ bool CProjectileInfoSA::AddProjectile(CEntity* creator, eWeaponType eWeapon, CVe
 
         pop     eax
     }
+    // clang-format on
     pGame->GetWorld()->IgnoreEntity(nullptr);
     return dwReturn != 0;
 }

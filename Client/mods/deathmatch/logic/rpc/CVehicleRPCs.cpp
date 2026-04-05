@@ -85,7 +85,7 @@ void CVehicleRPCs::BlowVehicle(CClientEntity* pSource, NetBitStreamInterface& bi
 
     if (bitStream.Read(syncTimeContext))
     {
-        if (bitStream.Can(eBitStreamVersion::VehicleBlowStateSupport) && !bitStream.ReadBit(withExplosion))
+        if (!bitStream.ReadBit(withExplosion))
         {
             return;
         }
@@ -312,24 +312,21 @@ void CVehicleRPCs::SetVehicleDamageState(CClientEntity* pSource, NetBitStreamInt
         {
             switch (ucObject)
             {
-                case 0:            // Door
+                case 0:  // Door
                 {
                     unsigned char ucDoor, ucState;
                     if (bitStream.Read(ucDoor) && bitStream.Read(ucState))
                     {
                         bool spawnFlyingComponent = true;
 
-                        if (bitStream.Can(eBitStreamVersion::SetVehicleDoorState_SpawnFlyingComponent))
-                        {
-                            if (!bitStream.ReadBit(spawnFlyingComponent))
-                                break;
-                        }
+                        if (!bitStream.ReadBit(spawnFlyingComponent))
+                            break;
 
                         pVehicle->SetDoorStatus(ucDoor, ucState, spawnFlyingComponent);
                     }
                     break;
                 }
-                case 1:            // Wheel
+                case 1:  // Wheel
                 {
                     unsigned char ucWheel, ucState;
                     if (bitStream.Read(ucWheel) && bitStream.Read(ucState))
@@ -338,7 +335,7 @@ void CVehicleRPCs::SetVehicleDamageState(CClientEntity* pSource, NetBitStreamInt
                     }
                     break;
                 }
-                case 2:            // Light
+                case 2:  // Light
                 {
                     unsigned char ucLight, ucState;
                     if (bitStream.Read(ucLight) && bitStream.Read(ucState))
@@ -347,18 +344,15 @@ void CVehicleRPCs::SetVehicleDamageState(CClientEntity* pSource, NetBitStreamInt
                     }
                     break;
                 }
-                case 3:            // Panel
+                case 3:  // Panel
                 {
                     unsigned char ucPanel, ucState;
                     if (bitStream.Read(ucPanel) && bitStream.Read(ucState))
                     {
                         bool spawnFlyingComponent = true;
                         bool breakGlass = false;
-                        if (bitStream.Can(eBitStreamVersion::SetVehiclePanelState_SpawnFlyingComponent))
-                        {
-                            bitStream.ReadBit(spawnFlyingComponent);
-                            bitStream.ReadBit(breakGlass);
-                        }
+                        bitStream.ReadBit(spawnFlyingComponent);
+                        bitStream.ReadBit(breakGlass);
 
                         pVehicle->SetPanelStatus(ucPanel, ucState, spawnFlyingComponent, breakGlass);
                     }
@@ -456,7 +450,7 @@ void CVehicleRPCs::SetVehicleWheelStates(CClientEntity* pSource, NetBitStreamInt
         CClientVehicle* pVehicle = m_pVehicleManager->Get(pSource->GetID());
         if (pVehicle)
         {
-            for (int i = 0; i < MAX_WHEELS; i++)
+            for (unsigned char i = 0; i < MAX_WHEELS; i++)
                 pVehicle->SetWheelStatus(i, ucWheelStates[i], false);
         }
     }
@@ -683,12 +677,12 @@ void CVehicleRPCs::SetVehicleNitroActivated(CClientEntity* pSourceEntity, NetBit
 
     CClientVehicle* vehicle = m_pVehicleManager->Get(pSourceEntity->GetID());
     if (!vehicle)
-        return;          
+        return;
 
     if (!vehicle->IsNitroInstalled())
         return;
 
-     // If nitro level < 0, nitro is activated. (until nitro level reaches -1, at that point it will become 0 and increase instead of decrease)
+    // If nitro level < 0, nitro is activated. (until nitro level reaches -1, at that point it will become 0 and increase instead of decrease)
     if ((vehicle->GetNitroLevel() < 0.0f) == state)
         return;
 
@@ -698,4 +692,3 @@ void CVehicleRPCs::SetVehicleNitroActivated(CClientEntity* pSourceEntity, NetBit
     else
         vehicle->SetNitroLevel(vehicle->GetNitroLevel() + 1.0001f);
 }
-

@@ -1,8 +1,8 @@
 project "glob"
 	language "C++"
-	cppdialect "C++17"
 	kind "StaticLib"
 	targetname "glob"
+	warnings "Off"
 
 	vpaths {
 		["Headers/*"] = "include/**.h",

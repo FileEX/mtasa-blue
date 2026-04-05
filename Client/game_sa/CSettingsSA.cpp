@@ -16,6 +16,8 @@
 #include "CGameSA.h"
 #include "CHudSA.h"
 #include "CSettingsSA.h"
+#include "CCameraSA.h"
+#include "CCamSA.h"
 
 extern CCoreInterface* g_pCore;
 extern CGameSA*        pGame;
@@ -24,9 +26,9 @@ static const float MOUSE_SENSITIVITY_MIN = 0.000312f;
 static const float MOUSE_SENSITIVITY_DEFAULT = 0.0025f;
 static const float MOUSE_SENSITIVITY_MAX = MOUSE_SENSITIVITY_DEFAULT * 2 - MOUSE_SENSITIVITY_MIN;
 
-#define VAR_CurVideoMode (*((uint*)(0x08D6220)))
+#define VAR_CurVideoMode   (*((uint*)(0x08D6220)))
 #define VAR_SavedVideoMode (*((uint*)(0x0BA6820)))
-#define VAR_CurAdapter (*((uint*)(0x0C920F4)))
+#define VAR_CurAdapter     (*((uint*)(0x0C920F4)))
 
 #define HOOKPOS_GetFxQuality 0x49EA50
 void HOOK_GetFxQuality();
@@ -51,7 +53,7 @@ CSettingsSA::CSettingsSA()
     HookInstall(HOOKPOS_StoreShadowForVehicle, (DWORD)HOOK_StoreShadowForVehicle, 9);
     m_iDesktopWidth = 0;
     m_iDesktopHeight = 0;
-    MemPut<BYTE>(0x6FF420, 0xC3);            // Truncate CalculateAspectRatio
+    MemPut<BYTE>(0x6FF420, 0xC3);  // Truncate CalculateAspectRatio
 
     MemPut(0x732926, &ms_fVehicleLODDistance);
     MemPut(0x732940, &ms_fTrainPlaneLODDistance);
@@ -80,7 +82,7 @@ unsigned int CSettingsSA::GetNumVideoModes()
 VideoMode* CSettingsSA::GetVideoModeInfo(VideoMode* modeInfo, unsigned int modeIndex)
 {
     // RwEngineGetVideoModeInfo
-    return ((VideoMode*(__cdecl*)(VideoMode*, unsigned int))0x7F2CF0)(modeInfo, modeIndex);
+    return ((VideoMode * (__cdecl*)(VideoMode*, unsigned int))0x7F2CF0)(modeInfo, modeIndex);
 }
 
 unsigned int CSettingsSA::GetCurrentVideoMode()
@@ -148,7 +150,10 @@ unsigned int CSettingsSA::GetUsertrackMode()
 
 void CSettingsSA::SetUsertrackMode(unsigned int uiMode)
 {
-    m_pInterface->ucUsertrackMode = uiMode;
+    if (uiMode > 2)
+        uiMode = 0;
+
+    m_pInterface->ucUsertrackMode = static_cast<BYTE>(uiMode);
 }
 
 bool CSettingsSA::IsUsertrackAutoScan()
@@ -192,7 +197,7 @@ float CSettingsSA::GetDrawDistance()
 
 void CSettingsSA::SetDrawDistance(float fDistance)
 {
-    MemPutFast<float>(0x8CD800, fDistance);            // CRenderer::ms_lodDistScale
+    MemPutFast<float>(0x8CD800, fDistance);  // CRenderer::ms_lodDistScale
     m_pInterface->fDrawDistance = fDistance;
 }
 
@@ -215,13 +220,13 @@ unsigned int CSettingsSA::GetFXQuality()
 
 void CSettingsSA::SetFXQuality(unsigned int fxQualityId)
 {
-    MemPutFast<BYTE>(VAR_ucFxQuality, fxQualityId);
+    MemPutFast<BYTE>(VAR_ucFxQuality, static_cast<BYTE>(fxQualityId));
 }
 
 float CSettingsSA::GetMouseSensitivity()
 {
     float fRawValue = *(float*)VAR_fMouseSensitivity;
-    return UnlerpClamped(MOUSE_SENSITIVITY_MIN, fRawValue, MOUSE_SENSITIVITY_MAX);            // Remap to 0-1
+    return UnlerpClamped(MOUSE_SENSITIVITY_MIN, fRawValue, MOUSE_SENSITIVITY_MAX);  // Remap to 0-1
 }
 
 void CSettingsSA::SetMouseSensitivity(float fSensitivity)
@@ -241,12 +246,14 @@ void CSettingsSA::SetAntiAliasing(unsigned int uiAntiAliasing, bool bOnRestart)
     if (!bOnRestart)
     {
         DWORD dwFunc = FUNC_SetAntiAliasing;
-        _asm
+        // clang-format off
+        __asm
         {
             push    uiAntiAliasing
             call    dwFunc
             add     esp, 4
         }
+        // clang-format on
         SetCurrentVideoMode(m_pInterface->dwVideoMode, false);
     }
 
@@ -265,12 +272,14 @@ void CSettingsSA::SetMipMappingEnabled(bool bEnable)
 
 void CSettingsSA::Save()
 {
-    _asm
+    // clang-format off
+    __asm
     {
         mov ecx, CLASS_CMenuManager
         mov eax, FUNC_CMenuManager_Save
         call eax
     }
+    // clang-format on
 }
 
 bool CSettingsSA::IsVolumetricShadowsEnabled() const noexcept
@@ -286,7 +295,6 @@ void CSettingsSA::SetVolumetricShadowsEnabled(bool bEnable)
     // if vehicle volumetric shadows are disabled because it looks a bit weird
     MemPut<BYTE>(0x5E682A + 1, bEnable);
 }
-
 
 bool CSettingsSA::GetVolumetricShadowsEnabledByVideoSetting() const noexcept
 {
@@ -329,7 +337,6 @@ bool CSettingsSA::ResetDynamicPedShadows() noexcept
     return true;
 }
 
-
 //
 // Volumetric shadow hooks
 //
@@ -348,11 +355,11 @@ __declspec(noinline) void _cdecl MaybeAlterFxQualityValue(DWORD dwAddrCalledFrom
         // These vehicles seem to have problems with volumetric shadows, so force blob shadows
         switch (usCallingForVehicleModel)
         {
-            case 460:            // Skimmer
-            case 511:            // Beagle
-            case 572:            // Mower
-            case 590:            // Box Freight
-            case 592:            // Andromada
+            case 460:  // Skimmer
+            case 511:  // Beagle
+            case 572:  // Mower
+            case 590:  // Box Freight
+            case 592:  // Andromada
                 dwFxQualityValue = 0;
         }
         usCallingForVehicleModel = 0;
@@ -360,15 +367,18 @@ __declspec(noinline) void _cdecl MaybeAlterFxQualityValue(DWORD dwAddrCalledFrom
     else
         // Handle all calls from CPed::PreRenderAfterTest
         if (dwAddrCalledFrom > 0x5E65A0 && dwAddrCalledFrom < 0x5E7680)
-    {
-        dwFxQualityValue = pGame->GetSettings()->IsDynamicPedShadowsEnabled() ? 2 : 0;
-    }
+        {
+            dwFxQualityValue = pGame->GetSettings()->IsDynamicPedShadowsEnabled() ? 2 : 0;
+        }
 }
 
 // Hooked from 0x49EA50
-void _declspec(naked) HOOK_GetFxQuality()
+static void __declspec(naked) HOOK_GetFxQuality()
 {
-    _asm
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+
+    // clang-format off
+    __asm
     {
         pushad
         mov     eax, [ecx+054h]            // Current FxQuality setting
@@ -383,12 +393,16 @@ void _declspec(naked) HOOK_GetFxQuality()
         mov     eax, dwFxQualityValue
         retn
     }
+    // clang-format on
 }
 
 // Hook to discover what vehicle will be calling GetFxQuality
-void _declspec(naked) HOOK_StoreShadowForVehicle()
+static void __declspec(naked) HOOK_StoreShadowForVehicle()
 {
-    _asm
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+
+    // clang-format off
+    __asm
     {
         // Hooked from 0x70BDA0  5 bytes
         mov     eax, [esp+4]            // Get vehicle
@@ -400,6 +414,7 @@ void _declspec(naked) HOOK_StoreShadowForVehicle()
         call    eax
         jmp     RETURN_StoreShadowForVehicle
     }
+    // clang-format on
 }
 
 ////////////////////////////////////////////////
@@ -437,7 +452,7 @@ void CSettingsSA::SetAspectRatio(eAspectRatio aspectRatio, bool bAdjustmentEnabl
     {
         fValue = 16 / 10.f;
     }
-    else            // ASPECT_RATIO_16_9
+    else  // ASPECT_RATIO_16_9
     {
         fValue = 16 / 9.f;
     }
@@ -488,7 +503,7 @@ void CSettingsSA::SetRadarMode(eRadarMode hudMode)
 ////////////////////////////////////////////////
 float ms_fFOV = 70;
 float ms_fFOVCar = 70;
-float ms_fFOVCarMax = 100;            // at high vehicle velocity
+float ms_fFOVCarMax = 100;  // at high vehicle velocity
 bool  ms_bFOVPlayerFromScript = false;
 bool  ms_bFOVVehicleFromScript = false;
 
@@ -525,36 +540,73 @@ void CSettingsSA::ResetFieldOfViewFromScript()
     UpdateFieldOfViewFromSettings();
 }
 
-void CSettingsSA::SetFieldOfViewPlayer(float fAngle, bool bFromScript)
+static std::pair<CCam*, unsigned int> GetActiveCamPlusMode()
+{
+    CCam* cam = pGame->GetCamera()->GetCam(pGame->GetCamera()->GetActiveCam());
+
+    if (cam == nullptr)
+        return std::make_pair(cam, MODE_NONE);
+
+    return std::make_pair(cam, cam->GetMode());
+}
+
+void CSettingsSA::SetFieldOfViewPlayer(float fAngle, bool bFromScript, bool instant)
 {
     if (!bFromScript && ms_bFOVPlayerFromScript)
         return;
+
     ms_bFOVPlayerFromScript = bFromScript;
     ms_fFOV = fAngle;
+
+    // CCam::Process_FollowPed_SA
     MemPut<void*>(0x0522F3A, &ms_fFOV);
     MemPut<void*>(0x0522F5D, &ms_fFOV);
     MemPut<float>(0x0522F7A, ms_fFOV);
+
+    if (instant)
+    {
+        const auto pair = GetActiveCamPlusMode();
+
+        if (pair.second == MODE_FOLLOWPED)
+            pair.first->SetFOV(fAngle);
+    }
 }
 
-void CSettingsSA::SetFieldOfViewVehicle(float fAngle, bool bFromScript)
+void CSettingsSA::SetFieldOfViewVehicle(float fAngle, bool bFromScript, bool instant)
 {
     if (!bFromScript && ms_bFOVVehicleFromScript)
         return;
+
     ms_bFOVVehicleFromScript = bFromScript;
     ms_fFOVCar = fAngle;
+
+    // CCam::Process_FollowCar_SA
     MemPut<void*>(0x0524B76, &ms_fFOVCar);
     MemPut<void*>(0x0524B9A, &ms_fFOVCar);
     MemPut<void*>(0x0524BA2, &ms_fFOVCar);
     MemPut<void*>(0x0524BD3, &ms_fFOVCar);
     MemPut<float>(0x0524BE4, ms_fFOVCar);
+
+    if (instant)
+    {
+        const auto pair = GetActiveCamPlusMode();
+
+        if (pair.second == MODE_BEHINDCAR || pair.second == MODE_CAM_ON_A_STRING || pair.second == MODE_BEHINDBOAT)
+            pair.first->SetFOV(fAngle);
+    }
 }
 
-void CSettingsSA::SetFieldOfViewVehicleMax(float fAngle, bool bFromScript)
+void CSettingsSA::SetFieldOfViewVehicleMax(float fAngle, bool bFromScript, bool instant)
 {
+    (void)instant;
+
     if (!bFromScript && ms_bFOVVehicleFromScript)
         return;
+
     ms_bFOVVehicleFromScript = bFromScript;
     ms_fFOVCarMax = fAngle;
+
+    // CCam::Process_FollowCar_SA
     MemPut<void*>(0x0524BB4, &ms_fFOVCarMax);
     MemPut<float>(0x0524BC5, ms_fFOVCarMax);
 }
@@ -925,14 +977,17 @@ __declspec(noinline) int OnMY_SelectDevice()
 }
 
 // Hook info
-#define HOOKPOS_SelectDevice 0x0746219
+#define HOOKPOS_SelectDevice  0x0746219
 #define HOOKSIZE_SelectDevice 6
-DWORD RETURN_SelectDeviceSingle = 0x0746273;
-DWORD RETURN_SelectDeviceMultiHide = 0x074622C;
-DWORD RETURN_SelectDeviceMultiShow = 0x0746227;
-void _declspec(naked) HOOK_SelectDevice()
+DWORD                         RETURN_SelectDeviceSingle = 0x0746273;
+DWORD                         RETURN_SelectDeviceMultiHide = 0x074622C;
+DWORD                         RETURN_SelectDeviceMultiShow = 0x0746227;
+static void __declspec(naked) HOOK_SelectDevice()
 {
-    _asm
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+
+    // clang-format off
+    __asm
     {
         pushad
         call    OnMY_SelectDevice
@@ -942,16 +997,17 @@ void _declspec(naked) HOOK_SelectDevice()
         jl      single
         jz      multishow
 
-                // multhide
+        // multhide
         mov     eax, 1
         jmp     RETURN_SelectDeviceMultiHide
 
-multishow:
+        multishow:
         jmp     RETURN_SelectDeviceMultiShow
 
-single:
+        single:
         jmp     RETURN_SelectDeviceSingle
     }
+    // clang-format on
 }
 
 ////////////////////////////////////////////////

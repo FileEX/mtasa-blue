@@ -14,11 +14,11 @@
 #include "Utils.h"
 
 static SFixedArray<unsigned short, 47> g_usWeaponModels = {{
-    0,   331, 333, 334, 335, 336, 337, 338, 339, 341,            // 9
-    321, 322, 323, 0,   325, 326, 342, 343, 344, 0,              // 19
-    0,   0,   346, 347, 348, 349, 350, 351, 352, 353,            // 29
-    355, 356, 372, 357, 358, 359, 360, 361, 362, 363,            // 39
-    364, 365, 366, 367, 368, 369, 371                            // 46
+    0,   331, 333, 334, 335, 336, 337, 338, 339, 341,  // 9
+    321, 322, 323, 324, 325, 326, 342, 343, 344, 0,    // 19
+    0,   0,   346, 347, 348, 349, 350, 351, 352, 353,  // 29
+    355, 356, 372, 357, 358, 359, 360, 361, 362, 363,  // 39
+    364, 365, 366, 367, 368, 369, 371                  // 46
 }};
 
 CPickupManager::CPickupManager(CColManager* pColManager)
@@ -65,7 +65,7 @@ bool CPickupManager::Exists(CPickup* pPickup)
 
 bool CPickupManager::IsValidWeaponID(unsigned int uiWeaponID)
 {
-    return (uiWeaponID > 0 && uiWeaponID != 13 && uiWeaponID != 19 && uiWeaponID != 20 && uiWeaponID != 21 && uiWeaponID <= 46);
+    return (uiWeaponID > 0 && uiWeaponID != 19 && uiWeaponID != 20 && uiWeaponID != 21 && uiWeaponID <= 46);
 }
 
 unsigned short CPickupManager::GetWeaponModel(unsigned int uiWeaponID)

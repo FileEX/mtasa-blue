@@ -4808,7 +4808,7 @@ struct
     333,
     "Golf_Club",
     334,
-    "Night_Strick",            // typo here retained for BC
+    "Night_Strick",  // typo here retained for BC
     334,
     "Night_Stick",
     335,
@@ -29324,7 +29324,7 @@ uint32 CModelNames::ResolveModelID(const SString& strModelName)
     {
         uint32 usModelID = atoi(strModelName.SubStr(3));
         if (usModelID)
-            return g_pGame->GetBaseIDforTXD() + usModelID;            // Encode global txd as model id 20000+
+            return g_pGame->GetBaseIDforTXD() + usModelID;  // Encode global txd as model id 20000+
     }
 
     // Now search for the name
@@ -29362,12 +29362,12 @@ void CModelNames::InitializeMaps()
     }
 
     // Include vehicle names as well
-    for (uint i = 400; i <= 610; i++)
+    for (uint32_t i = 400; i <= 610; i++)
     {
-        ushort      usID = i;
+        uint32_t    modelId = i;
         const char* szName = CVehicleNames::GetVehicleName(i);
-        MapSet(ms_ModelIDNameMap, usID, szName);
-        MapSet(ms_NameModelIDMap, SStringX(szName).ToLower(), usID);
+        MapSet(ms_ModelIDNameMap, modelId, szName);
+        MapSet(ms_NameModelIDMap, SStringX(szName).ToLower(), modelId);
     }
 
     assert(NUMELMS(playerClothesModel) == CLOTHES_MODEL_ID_LAST - CLOTHES_MODEL_ID_FIRST + 1);

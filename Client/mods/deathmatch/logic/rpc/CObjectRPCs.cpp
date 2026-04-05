@@ -95,11 +95,8 @@ void CObjectRPCs::SetObjectScale(CClientEntity* pSource, NetBitStreamInterface& 
         bitStream.Read(vecScale.fX);
         vecScale.fY = vecScale.fX;
         vecScale.fZ = vecScale.fX;
-        if (bitStream.Version() >= 0x40)
-        {
-            bitStream.Read(vecScale.fY);
-            bitStream.Read(vecScale.fZ);
-        }
+        bitStream.Read(vecScale.fY);
+        bitStream.Read(vecScale.fZ);
         pObject->SetScale(vecScale);
     }
 }
@@ -132,7 +129,7 @@ void CObjectRPCs::SetObjectBreakable(CClientEntity* pSource, NetBitStreamInterfa
 
 void CObjectRPCs::BreakObject(CClientEntity* pSource, NetBitStreamInterface& bitStream)
 {
-   auto* pObject = static_cast<CDeathmatchObject*>(m_pObjectManager->Get(pSource->GetID()));
+    auto* pObject = static_cast<CDeathmatchObject*>(m_pObjectManager->Get(pSource->GetID()));
 
     if (pObject)
         pObject->Break();

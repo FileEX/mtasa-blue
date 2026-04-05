@@ -11,6 +11,21 @@
 
 #include "StdInc.h"
 #include "CLuaModule.h"
+
+#include <cstring>
+
+#ifdef WIN32
+template <typename T>
+static T GetProcAddressAs(HMODULE module, const char* procName)
+{
+    FARPROC proc = module ? GetProcAddress(module, procName) : nullptr;
+    T       fn = nullptr;
+    static_assert(sizeof(fn) == sizeof(proc), "Unexpected function pointer size");
+    if (proc)
+        std::memcpy(&fn, &proc, sizeof(fn));
+    return fn;
+}
+#endif
 #include "CLuaModuleManager.h"
 #include "CScriptDebugging.h"
 #include "CStaticFunctionDefinitions.h"
@@ -95,20 +110,20 @@ int CLuaModule::_LoadModule()
             CLogger::LogPrintf("MODULE: File not found - %s\n", *strExpectedPathFilename);
         }
         else
-    #ifdef WIN_x64
+#ifdef WIN_x64
             if (IsModule32Bit(strExpectedPathFilename))
         {
             CLogger::LogPrintf("MODULE: File not 64 bit - %s\n", *strExpectedPathFilename);
         }
         else
-    #endif
-    #ifdef WIN_x86
+#endif
+#ifdef WIN_x86
             if (!IsModule32Bit(strExpectedPathFilename))
         {
             CLogger::LogPrintf("MODULE: File not 32 bit - %s\n", *strExpectedPathFilename);
         }
         else
-    #endif
+#endif
         {
             CLogger::LogPrintf("MODULE: Unable to load %s (%s)\n", *strExpectedPathFilename, *strError);
         }
@@ -117,14 +132,14 @@ int CLuaModule::_LoadModule()
 
     // Find the initialisation function
 #ifdef WIN32
-    pfnInitFunc = (InitModuleFunc)(GetProcAddress(m_hModule, "InitModule"));
+    pfnInitFunc = GetProcAddressAs<InitModuleFunc>(m_hModule, "InitModule");
     if (pfnInitFunc == NULL)
     {
         CLogger::LogPrintf("MODULE: Unable to initialize %s!\n", *PathJoin(SERVER_BIN_PATH_MOD, "modules", m_szShortFileName));
         return 2;
     }
 #else
-    pfnInitFunc = (InitModuleFunc)(dlsym(m_hModule, "InitModule"));
+    pfnInitFunc = reinterpret_cast<InitModuleFunc>(dlsym(m_hModule, "InitModule"));
     if (dlerror() != NULL)
     {
         CLogger::LogPrintf("MODULE: Unable to initialize %s (%s)!\n", *PathJoin(SERVER_BIN_PATH_MOD, "modules", m_szShortFileName), dlerror());
@@ -135,35 +150,35 @@ int CLuaModule::_LoadModule()
     // Initialise
     m_FunctionInfo.szFileName = m_szShortFileName;
 #ifdef WIN32
-    m_FunctionInfo.DoPulse = (DefaultModuleFunc)(GetProcAddress(m_hModule, "DoPulse"));
+    m_FunctionInfo.DoPulse = GetProcAddressAs<DefaultModuleFunc>(m_hModule, "DoPulse");
     if (m_FunctionInfo.DoPulse == NULL)
         return 3;
-    m_FunctionInfo.ShutdownModule = (DefaultModuleFunc)(GetProcAddress(m_hModule, "ShutdownModule"));
+    m_FunctionInfo.ShutdownModule = GetProcAddressAs<DefaultModuleFunc>(m_hModule, "ShutdownModule");
     if (m_FunctionInfo.ShutdownModule == NULL)
         return 4;
-    m_FunctionInfo.RegisterFunctions = (RegisterModuleFunc)(GetProcAddress(m_hModule, "RegisterFunctions"));
+    m_FunctionInfo.RegisterFunctions = GetProcAddressAs<RegisterModuleFunc>(m_hModule, "RegisterFunctions");
     if (m_FunctionInfo.RegisterFunctions == NULL)
         return 5;
 
-    m_FunctionInfo.ResourceStopping = (RegisterModuleFunc)(GetProcAddress(m_hModule, "ResourceStopping"));
+    m_FunctionInfo.ResourceStopping = GetProcAddressAs<RegisterModuleFunc>(m_hModule, "ResourceStopping");
     // No error for backward compatibility
     // if ( m_FunctionInfo.ResourceStopping == NULL ) return 6;
-    m_FunctionInfo.ResourceStopped = (RegisterModuleFunc)(GetProcAddress(m_hModule, "ResourceStopped"));
+    m_FunctionInfo.ResourceStopped = GetProcAddressAs<RegisterModuleFunc>(m_hModule, "ResourceStopped");
     // if ( m_FunctionInfo.ResourceStopped == NULL ) return 7;
 #else
-    m_FunctionInfo.DoPulse = (DefaultModuleFunc)(dlsym(m_hModule, "DoPulse"));
+    m_FunctionInfo.DoPulse = reinterpret_cast<DefaultModuleFunc>(dlsym(m_hModule, "DoPulse"));
     if (m_FunctionInfo.DoPulse == NULL)
         return 3;
-    m_FunctionInfo.ShutdownModule = (DefaultModuleFunc)(dlsym(m_hModule, "ShutdownModule"));
+    m_FunctionInfo.ShutdownModule = reinterpret_cast<DefaultModuleFunc>(dlsym(m_hModule, "ShutdownModule"));
     if (m_FunctionInfo.ShutdownModule == NULL)
         return 4;
-    m_FunctionInfo.RegisterFunctions = (RegisterModuleFunc)(dlsym(m_hModule, "RegisterFunctions"));
+    m_FunctionInfo.RegisterFunctions = reinterpret_cast<RegisterModuleFunc>(dlsym(m_hModule, "RegisterFunctions"));
     if (m_FunctionInfo.RegisterFunctions == NULL)
         return 5;
 
-    m_FunctionInfo.ResourceStopping = (RegisterModuleFunc)(dlsym(m_hModule, "ResourceStopping"));
+    m_FunctionInfo.ResourceStopping = reinterpret_cast<RegisterModuleFunc>(dlsym(m_hModule, "ResourceStopping"));
     // if ( m_FunctionInfo.ResourceStopping == NULL ) return 6;
-    m_FunctionInfo.ResourceStopped = (RegisterModuleFunc)(dlsym(m_hModule, "ResourceStopped"));
+    m_FunctionInfo.ResourceStopped = reinterpret_cast<RegisterModuleFunc>(dlsym(m_hModule, "ResourceStopped"));
     // if ( m_FunctionInfo.ResourceStopped == NULL ) return 7;
 #endif
     // Run initialisation function
@@ -285,7 +300,7 @@ bool CLuaModule::RegisterFunction(lua_State* luaVM, const char* szFunctionName, 
             CLuaCFunctions::AddFunction(szFunctionName, Func);
             lua_register(luaVM, szFunctionName, Func);
             if (!_DoesFunctionExist(szFunctionName))
-            {            // Check or it adds for each resource
+            {  // Check or it adds for each resource
                 m_Functions.push_back(szFunctionName);
             }
         }

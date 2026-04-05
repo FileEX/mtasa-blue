@@ -33,8 +33,8 @@ namespace
 
     struct CTimingPair
     {
-        CTiming acc;             // Accumulator for current period
-        CTiming prev;            // Result for previous period
+        CTiming acc;   // Accumulator for current period
+        CTiming prev;  // Result for previous period
 
         void Pulse(CTimingPair* above)
         {
@@ -48,10 +48,10 @@ namespace
     class CTimingBlock
     {
     public:
-        CTimingPair s5;             // 5 second period
-        CTimingPair s60;            // 60
-        CTimingPair m5;             // 300
-        CTimingPair m60;            // 3600
+        CTimingPair s5;   // 5 second period
+        CTimingPair s60;  // 60
+        CTimingPair m5;   // 300
+        CTimingPair m60;  // 3600
 
         void Pulse1s(int flags)
         {
@@ -102,7 +102,7 @@ namespace
             }
         }
     };
-}            // namespace
+}  // namespace
 
 ///////////////////////////////////////////////////////////////
 //
@@ -270,13 +270,13 @@ void CPerfStatLuaTimingImpl::DoPulse()
         int flags = 0;
         m_SecondCounter++;
 
-        if (m_SecondCounter % 5 == 0)            // 1 second
+        if (m_SecondCounter % 5 == 0)  // 1 second
             flags |= 1;
-        if (m_SecondCounter % 60 == 0)            // 60 seconds
+        if (m_SecondCounter % 60 == 0)  // 60 seconds
             flags |= 2;
-        if (m_SecondCounter % (60 * 5) == 0)            // 5 mins
+        if (m_SecondCounter % (60 * 5) == 0)  // 5 mins
             flags |= 4;
-        if (m_SecondCounter % (60 * 60) == 0)            // 60 mins
+        if (m_SecondCounter % (60 * 60) == 0)  // 60 mins
             flags |= 8;
 
         AllLuaTiming.Pulse1s(flags);
@@ -430,9 +430,9 @@ void CPerfStatLuaTimingImpl::OutputTimingBlock(CPerfStatResult* pResult, const C
 
             double total_p = total_s / double(threshList[i]) * 100;
 
-            row[c++] = total_p > 0.005 ? SString("%2.2f%%", total_p) : "-";
-            row[c++] = total_s > 0.0005 ? SString("%2.3f", total_s) : "-";
-            row[c++] = p->prev.calls > 0 ? SString("%d", p->prev.calls) : "";
+            row[c++] = total_p > 0.005 ? SString("%2.2f%%", total_p) : SStringX("-");
+            row[c++] = total_s > 0.0005 ? SString("%2.3f", total_s) : SStringX("-");
+            row[c++] = p->prev.calls > 0 ? SString("%d", p->prev.calls) : SStringX("-");
             row[c++] = avg_s > 0.0005 ? SString("%2.3f", avg_s).c_str() : bSubBlock ? "-" : "";
             row[c++] = max_s > 0.0005 ? SString("%2.3f", max_s).c_str() : bSubBlock ? "-" : "";
         }

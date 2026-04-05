@@ -21,9 +21,9 @@ class CNetAPI;
 #include "CTickRateSettings.h"
 
 // SYNC SETTINGS
-#define TICK_RATE       ( g_TickRateSettings.iPureSync )
-#define CAM_SYNC_RATE   ( g_TickRateSettings.iCamSync )
-#define TICK_RATE_AIM   ( std::min ( TICK_RATE, g_TickRateSettings.iKeySyncRotation ) )  // Keysync or puresync update the aim, so use the shortest interval
+#define TICK_RATE     (g_TickRateSettings.iPureSync)
+#define CAM_SYNC_RATE (g_TickRateSettings.iCamSync)
+#define TICK_RATE_AIM (std::min(TICK_RATE, g_TickRateSettings.iKeySyncRotation))  // Keysync or puresync update the aim, so use the shortest interval
 
 enum eServerRPCFunctions
 {
@@ -49,9 +49,8 @@ public:
 
     void AddInterpolation(const CVector& vecPosition);
     bool GetInterpolation(CVector& vecPosition, unsigned short usLatency);
-    void SendBulletSyncFire(eWeaponType weaponType, const CVector& vecStart, const CVector& vecEnd, float fDamage, uchar ucHitZone,
-                            CClientPlayer* pRemoteDamagedPlayer);
-    void SendBulletSyncCustomWeaponFire(CClientWeapon* pWeapon, const CVector& vecStart, const CVector& vecEnd);
+    void SendBulletSyncFire(eWeaponType weapon, const CVector& start, const CVector& end, float damage, std::uint8_t zone, CClientPlayer* damaged);
+    void SendBulletSyncCustomWeaponFire(CClientWeapon* weapon, const CVector& start, const CVector& end);
     bool IsNetworkTrouble() { return m_bIsNetworkTrouble; }
 
     static bool IsWeaponIDAkimbo(unsigned char ucWeaponID);
@@ -64,8 +63,8 @@ private:
     void ReadKeysync(CClientPlayer* pPlayer, NetBitStreamInterface& BitStream);
     void WriteKeysync(CClientPed* pPed, NetBitStreamInterface& BitStream);
 
-    void ReadBulletsync(CClientPlayer* pPlayer, NetBitStreamInterface& BitStream);
-    void ReadWeaponBulletsync(CClientPlayer* pWeapon, NetBitStreamInterface& BitStream);
+    void ReadBulletsync(CClientPlayer* player, NetBitStreamInterface& stream);
+    void ReadWeaponBulletsync(CClientPlayer* player, NetBitStreamInterface& stream);
 
     void ReadPlayerPuresync(CClientPlayer* pPlayer, NetBitStreamInterface& BitStream);
     void WritePlayerPuresync(CClientPlayer* pPed, NetBitStreamInterface& BitStream);

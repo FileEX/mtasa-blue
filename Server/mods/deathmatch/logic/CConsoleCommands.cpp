@@ -32,7 +32,7 @@ extern CGame* g_pGame;
 static std::string GetAdminNameForLog(CClient* pClient)
 {
     std::string strName = pClient->GetNick();
-    std::string strAccountName = pClient->GetAccount() ? pClient->GetAccount()->GetName() : "no account";
+    std::string strAccountName = pClient->GetAccount() ? pClient->GetAccount()->GetName() : SStringX("no account");
     if (strName == strAccountName)
         return strName;
     return SString("%s(%s)", strName.c_str(), strAccountName.c_str());
@@ -86,7 +86,8 @@ bool CConsoleCommands::StartResource(CConsole* pConsole, const char* szArguments
 
         if (!resource->IsLoaded())
         {
-            pEchoClient->SendConsole(SString("start: Resource '%s' is loaded, but has errors (%s)", resourceName.c_str(), resource->GetFailureReason().c_str()));
+            pEchoClient->SendConsole(
+                SString("start: Resource '%s' is loaded, but has errors (%s)", resourceName.c_str(), resource->GetFailureReason().c_str()));
             continue;
         }
 
@@ -135,7 +136,8 @@ bool CConsoleCommands::RestartResource(CConsole* pConsole, const char* szArgumen
 
         if (!resource->IsLoaded())
         {
-            pEchoClient->SendConsole(SString("restart: Resource '%s' is loaded, but has errors (%s)", resourceName.c_str(), resource->GetFailureReason().c_str()));
+            pEchoClient->SendConsole(
+                SString("restart: Resource '%s' is loaded, but has errors (%s)", resourceName.c_str(), resource->GetFailureReason().c_str()));
             continue;
         }
 
@@ -384,7 +386,7 @@ bool CConsoleCommands::Say(CConsole* pConsole, const char* szInArguments, CClien
                             // Send the chat message and player pointer to the script
                             CLuaArguments Arguments;
                             Arguments.PushString(szArguments);
-                            Arguments.PushNumber(MESSAGE_TYPE_PLAYER);            // Normal chat
+                            Arguments.PushNumber(MESSAGE_TYPE_PLAYER);  // Normal chat
                             bool bContinue = static_cast<CPlayer*>(pClient)->CallEvent("onPlayerChat", Arguments);
                             if (bContinue)
                             {
@@ -519,7 +521,7 @@ bool CConsoleCommands::TeamSay(CConsole* pConsole, const char* szInArguments, CC
                             // Send the chat message and player pointer to the script
                             CLuaArguments Arguments;
                             Arguments.PushString(szArguments);
-                            Arguments.PushNumber(MESSAGE_TYPE_TEAM);            // Team chat
+                            Arguments.PushNumber(MESSAGE_TYPE_TEAM);  // Team chat
                             bool bContinue = static_cast<CPlayer*>(pClient)->CallEvent("onPlayerChat", Arguments);
                             if (bContinue)
                             {
@@ -626,9 +628,9 @@ bool CConsoleCommands::Msg(CConsole* pConsole, const char* szInArguments, CClien
 
                                         // Send the message and player pointer to the script
                                         CLuaArguments Arguments;
-                                        Arguments.PushString(szArguments); // We don't want to remove this for backwards compatibility reasons
+                                        Arguments.PushString(szArguments);  // We don't want to remove this for backwards compatibility reasons
                                         Arguments.PushElement(pPlayer);
-                                        Arguments.PushString(szMessage); // Fix #2135
+                                        Arguments.PushString(szMessage);  // Fix #2135
 
                                         bool bContinue = pSender->CallEvent("onPlayerPrivateMessage", Arguments);
                                         if (bContinue)
@@ -726,8 +728,8 @@ bool CConsoleCommands::Me(CConsole* pConsole, const char* szArguments, CClient* 
                     if (pClient->GetClientType() == CClient::CLIENT_PLAYER)
                     {
                         CLuaArguments Arguments;
-                        Arguments.PushString(szArguments);                    // text
-                        Arguments.PushNumber(MESSAGE_TYPE_ACTION);            // Me chat
+                        Arguments.PushString(szArguments);          // text
+                        Arguments.PushNumber(MESSAGE_TYPE_ACTION);  // Me chat
                         bool bContinue = static_cast<CPlayer*>(pClient)->CallEvent("onPlayerChat", Arguments);
                         if (bContinue)
                         {
@@ -796,7 +798,7 @@ bool CConsoleCommands::Nick(CConsole* pConsole, const char* szArguments, CClient
                                 CLuaArguments Arguments;
                                 Arguments.PushString(pClient->GetNick());
                                 Arguments.PushString(szNewNick);
-                                Arguments.PushBoolean(true);            // manually changed
+                                Arguments.PushBoolean(true);  // manually changed
                                 if (pPlayer->CallEvent("onPlayerChangeNick", Arguments))
                                 {
                                     // Tell the console
@@ -1295,8 +1297,8 @@ bool CConsoleCommands::DebugScript(CConsole* console, const char* arguments, CCl
     }
 
     CPlayer* player = static_cast<CPlayer*>(client);
-    int debugLevel = arguments[0] - '0'; // Convert the character to an integer (e.g., '2' -> 2)
-    int debugLevelCurrent = player->GetScriptDebugLevel();
+    int      debugLevel = arguments[0] - '0';  // Convert the character to an integer (e.g., '2' -> 2)
+    int      debugLevelCurrent = player->GetScriptDebugLevel();
 
     // Check if the level is the same
     if (debugLevel == debugLevelCurrent)
@@ -1313,7 +1315,7 @@ bool CConsoleCommands::DebugScript(CConsole* console, const char* arguments, CCl
     }
 
     // Set the new level
-    player->SetScriptDebugLevel(debugLevel);
+    player->SetScriptDebugLevel(static_cast<uint8_t>(debugLevel));
     echoClient->SendEcho(("debugscript: Your debug mode was set to " + std::to_string(debugLevel)).c_str());
     CLogger::LogPrintf("SCRIPT: %s set their script debug mode to %d\n", GetAdminNameForLog(client).c_str(), debugLevel);
 
@@ -1570,7 +1572,7 @@ bool CConsoleCommands::OpenPortsTest(CConsole* pConsole, const char* szArguments
 {
     if (pClient->GetClientType() == CClient::CLIENT_CONSOLE)
     {
-#if MTASA_VERSION_TYPE < VERSION_TYPE_RELEASE
+#if MTASA_VERSION_TYPE < VERSION_TYPE_UNTESTED
         if (SStringX(szArguments) == "crashme")
         {
             // For testing crash handling
@@ -1625,9 +1627,9 @@ bool DoAclRequest(CConsole* pConsole, const char* szArguments, CClient* pClient,
 
     std::vector<SString> parts;
     SStringX(szArguments).Split(" ", parts);
-    const SString& strAction = parts.size() > 0 ? parts[0] : "";
-    const SString& strResourceName = parts.size() > 1 ? parts[1] : "";
-    const SString& strRightName = parts.size() > 2 ? parts[2] : "";
+    const SString& strAction = parts.size() > 0 ? parts[0] : SStringX("");
+    const SString& strResourceName = parts.size() > 1 ? parts[1] : SStringX("");
+    const SString& strRightName = parts.size() > 2 ? parts[2] : SStringX("");
 
     bool bList = strAction == "list";
     bool bAllow = strAction == "allow";
@@ -1695,8 +1697,8 @@ bool CConsoleCommands::AuthorizeSerial(CConsole* pConsole, const char* szArgumen
 
     std::vector<SString> parts;
     SStringX(szArguments).Split(" ", parts);
-    const SString& strAccountName = parts.size() > 0 ? parts[0] : "";
-    const SString& strAction = parts.size() > 1 ? parts[1] : "";
+    const SString& strAccountName = parts.size() > 0 ? parts[0] : SStringX("");
+    const SString& strAction = parts.size() > 1 ? parts[1] : SStringX("");
 
     bool bList = strAction == "list";
     bool bAllow = strAction == "";

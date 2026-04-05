@@ -28,13 +28,13 @@ public:
     ZERO_ON_NEW
     CClientPlayerVoice(CClientPlayer* pPlayer, CVoiceRecorder* pVoiceRecorder);
     ~CClientPlayerVoice();
-    void DecodeAndBuffer(char* pBuffer, unsigned int bytesWritten);
+    void DecodeAndBuffer(const unsigned char* voiceBuffer, unsigned int voiceBufferLength);
     void DoPulse();
 
     bool m_bVoiceActive;
 
     std::list<SString> m_EventQueue;
-    std::mutex         m_Mutex;            // Only for m_EventQueue and m_bVoiceActive
+    std::mutex         m_Mutex;  // Only for m_EventQueue and m_bVoiceActive
 
     void GetTempoValues(float& fSampleRate, float& fTempo, float& fPitch, bool& bReverse)
     {

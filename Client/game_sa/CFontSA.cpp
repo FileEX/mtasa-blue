@@ -14,7 +14,7 @@
 
 void CFontSA::PrintChar(float x, float y, char character)
 {
-    // Call CFont::PrintChar    
+    // Call CFont::PrintChar
     ((void(_cdecl*)(float, float, char))0x718A10)(x, y, character);
 }
 
@@ -179,5 +179,9 @@ eFontStyle CFontSA::GetFontStyle()
             return eFontStyle::FONT_PRICEDOWN;
         case 2:
             return eFontStyle::FONT_MENU;
+        default:
+            break;
     }
+
+    return eFontStyle::FONT_MENU;
 }

@@ -120,7 +120,6 @@ void CLuaTimerManager::SetTimerPaused(CLuaTimer* timer, bool paused)
         ListRemove(m_ProcessQueue, timer);
 }
 
-
 void CLuaTimerManager::ResetTimer(CLuaTimer* pLuaTimer)
 {
     assert(pLuaTimer);
@@ -157,5 +156,5 @@ CLuaTimer* CLuaTimerManager::AddTimer(const CLuaFunctionRef& iLuaFunction, CTick
         return pLuaTimer;
     }
 
-    return false;
+    return nullptr;
 }

@@ -3,10 +3,10 @@ project "Core"
 	kind "SharedLib"
 	targetname "core"
 	targetdir(buildpath("server"))
+	clangtidy "On"
 
 	filter "system:windows"
 		includedirs { "../../vendor/sparsehash/current/src/windows" }
-		linkoptions { "/SAFESEH:NO" }
 
 	filter {}
 		includedirs {

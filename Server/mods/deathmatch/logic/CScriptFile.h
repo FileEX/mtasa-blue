@@ -32,7 +32,7 @@ public:
     ~CScriptFile();
 
     // Functions required by CElement
-    void Unlink(){};
+    void Unlink() {};
 
     // Load and unload routines
     bool           Load(CResource* pResourceForFilePath, eMode Mode);
@@ -60,6 +60,7 @@ public:
 
     void Flush();
     long Read(unsigned long ulSize, SString& outBuffer);
+    long ReadToBuffer(unsigned char* buffer, unsigned long bufferSize);
     long Write(unsigned long ulSize, const char* pData);
 
     long GetContents(std::string& buffer);

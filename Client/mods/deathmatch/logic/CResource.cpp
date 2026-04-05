@@ -14,6 +14,8 @@
 #include "profiler/SharedUtil.Profiler.h"
 #include "CServerIdManager.h"
 
+#include <limits>
+
 using namespace std;
 
 extern CClientGame* g_pClientGame;
@@ -39,7 +41,7 @@ CResource::CResource(unsigned short usNetID, const char* szResourceName, CClient
 
     m_pLuaManager = g_pClientGame->GetLuaManager();
     m_pRootEntity = g_pClientGame->GetRootEntity();
-    m_pDefaultElementGroup = new CElementGroup();            // for use by scripts
+    m_pDefaultElementGroup = new CElementGroup();  // for use by scripts
     m_pResourceEntity = pResourceEntity;
     m_pResourceDynamicEntity = pResourceDynamicEntity;
 
@@ -114,7 +116,23 @@ CResource::~CResource()
 
     // Remove all keybinds on this VM
     g_pClientGame->GetScriptKeyBinds()->RemoveAllKeys(m_pLuaVM);
-    g_pCore->GetKeyBinds()->SetAllCommandsActive(m_strResourceName, false);
+
+    // Remove all resource-specific command bindings while preserving user bindings
+    CKeyBindsInterface* pKeyBinds = g_pCore->GetKeyBinds();
+    pKeyBinds->SetAllCommandsActive(m_strResourceName, false);
+
+    // Additional cleanup: remove any remaining resource bindings that weren't caught by SetAllCommandsActive
+    for (auto& bind : *pKeyBinds)
+    {
+        if (bind->type == KeyBindType::COMMAND)
+        {
+            auto commandBind = static_cast<CCommandBind*>(bind.get());
+            if (commandBind->context == BindingContext::RESOURCE && commandBind->resource == m_strResourceName)
+            {
+                pKeyBinds->Remove(commandBind);
+            }
+        }
+    }
 
     // Destroy the txd root so all dff elements are deleted except those moved out
     g_pClientGame->GetElementDeleter()->DeleteRecursive(m_pResourceTXDRoot);
@@ -258,7 +276,7 @@ void CResource::Load()
         m_pResourceTXDRoot->SetParent(m_pResourceEntity);
     }
 
-    CLogger::LogPrintf("> Starting resource '%s'", *m_strResourceName);
+    CLogger::LogPrintf("> Starting resource '%s'\n", *m_strResourceName);
 
     // Flag resource files as readable
     for (std::list<CResourceConfigItem*>::iterator iter = m_ConfigFiles.begin(); iter != m_ConfigFiles.end(); ++iter)
@@ -316,8 +334,7 @@ void CResource::Load()
         }
         else if (pResourceFile->IsAutoDownload())
         {
-            // Check the file contents
-            if (CChecksum::GenerateChecksumFromFileUnsafe(pResourceFile->GetName()) != pResourceFile->GetServerChecksum())
+            if (!pResourceFile->DoesClientAndServerChecksumMatch())
             {
                 HandleDownloadedFileTrouble(pResourceFile, false);
             }
@@ -339,14 +356,10 @@ void CResource::Load()
         NetBitStreamInterface* pBitStream = g_pNet->AllocateNetBitStream();
         if (pBitStream)
         {
-            if (pBitStream->Can(eBitStreamVersion::OnPlayerResourceStart))
-            {
-                // Write resource net ID
-                pBitStream->Write(GetNetID());
-
-                g_pNet->SendPacket(PACKET_ID_PLAYER_RESOURCE_START, pBitStream, PACKET_PRIORITY_HIGH, PACKET_RELIABILITY_RELIABLE_ORDERED);
-            }
-
+            // Write resource net ID
+            pBitStream->Write(GetNetID());
+            pBitStream->Write(GetStartCounter());
+            g_pNet->SendPacket(PACKET_ID_PLAYER_RESOURCE_START, pBitStream, PACKET_PRIORITY_HIGH, PACKET_RELIABILITY_RELIABLE_ORDERED);
             g_pNet->DeallocateNetBitStream(pBitStream);
         }
     }
@@ -370,7 +383,16 @@ void CResource::Stop()
         {
             discord->ResetDiscordData();
             discord->SetPresenceState(_("In-game"), false);
-            discord->SetPresenceStartTimestamp(time(nullptr));
+            const time_t  now = time(nullptr);
+            unsigned long startTimestamp = 0;
+            if (now > 0)
+            {
+                const auto maxValue = std::numeric_limits<unsigned long>::max();
+                const auto nowUnsigned = static_cast<unsigned long long>(now);
+                startTimestamp = (nowUnsigned > maxValue) ? maxValue : static_cast<unsigned long>(now);
+            }
+
+            discord->SetPresenceStartTimestamp(startTimestamp);
             discord->UpdatePresence();
         }
     }
@@ -414,11 +436,11 @@ void CResource::ShowCursor(bool bShow, bool bToggleControls)
 
         // Update our showing cursor state
         m_bShowingCursor = bShow;
-
-        // Show cursor if more than 0 resources wanting the cursor on
-        g_pCore->ForceCursorVisible(m_iShowingCursor > 0, bToggleControls);
-        g_pClientGame->SetCursorEventsEnabled(m_iShowingCursor > 0);
     }
+
+    // Always update cursor and controls state regardless of cursor visibility change
+    g_pCore->ForceCursorVisible(m_iShowingCursor > 0, bToggleControls);
+    g_pClientGame->SetCursorEventsEnabled(m_iShowingCursor > 0);
 }
 
 SString CResource::GetResourceDirectoryPath(eAccessType accessType, const SString& strMetaPath)
@@ -502,20 +524,18 @@ void CResource::AddToElementGroup(CClientEntity* pElement)
 //
 void CResource::HandleDownloadedFileTrouble(CResourceFile* pResourceFile, bool bScript)
 {
-    auto checksumResult = CChecksum::GenerateChecksumFromFile(pResourceFile->GetName());
-
     SString errorMessage;
-    if (std::holds_alternative<std::string>(checksumResult))
-        errorMessage = std::get<std::string>(checksumResult);
+
+    CChecksum clientChecksum = pResourceFile->GetLastClientChecksum();
+    if (clientChecksum == CChecksum())
+    {
+        errorMessage = SString("File not readable: %s", pResourceFile->GetName());
+    }
     else
     {
-        CChecksum checksum = std::get<CChecksum>(checksumResult);
-
-        // Compose message
-        uint    uiGotFileSize = (uint)FileSize(pResourceFile->GetName());
-        SString strGotMd5 = ConvertDataToHexString(checksum.md5.data, sizeof(MD5));
+        SString strGotMd5 = ConvertDataToHexString(clientChecksum.md5.data, sizeof(MD5));
         SString strWantedMd5 = ConvertDataToHexString(pResourceFile->GetServerChecksum().md5.data, sizeof(MD5));
-        errorMessage = SString("Got size:%d MD5:%s, wanted MD5:%s", uiGotFileSize, *strGotMd5, *strWantedMd5);
+        errorMessage = SString("Got MD5:%s, wanted MD5:%s", *strGotMd5, *strWantedMd5);
     }
 
     SString strFilename = ExtractFilename(PathConform(pResourceFile->GetShortName()));

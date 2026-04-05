@@ -116,16 +116,13 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
         }
 
         // Version info
-        if (BitStream.Version() >= 0x34)
-        {
-            BitStream.Write(pPlayer->GetBitStreamVersion());
-            BitStream.Write(pPlayer->GetPlayerVersion().GetBuildNumber());
-        }
+        BitStream.Write(pPlayer->GetBitStreamVersion());
+        BitStream.Write(pPlayer->GetPlayerVersion().GetBuildNumber());
 
         // Flags
         bool bInVehicle = (pPlayer->GetOccupiedVehicle() != NULL);
         BitStream.WriteBit(pPlayer->IsDead());
-        BitStream.WriteBit(true);            // (Was IsSpawned) Used by the client to determine if extra info was sent (in this packet)
+        BitStream.WriteBit(true);  // (Was IsSpawned) Used by the client to determine if extra info was sent (in this packet)
         BitStream.WriteBit(bInVehicle);
         BitStream.WriteBit(pPlayer->HasJetPack());
         BitStream.WriteBit(pPlayer->IsNametagShowing());
@@ -138,12 +135,6 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
         char*         szNametagText = pPlayer->GetNametagText();
         if (szNametagText)
             ucNametagTextLength = static_cast<unsigned char>(strlen(szNametagText));
-
-        if (!BitStream.Can(eBitStreamVersion::UnicodeNametags))
-        {
-            // Old client version has a fixed buffer of 22 characters
-            ucNametagTextLength = std::min<uchar>(ucNametagTextLength, 22);
-        }
 
         BitStream.Write(ucNametagTextLength);
         if (ucNametagTextLength > 0)
@@ -160,11 +151,8 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
         }
 
         // Move anim
-        if (BitStream.Version() > 0x4B)
-        {
-            uchar ucMoveAnim = pPlayer->GetMoveAnim();
-            BitStream.Write(ucMoveAnim);
-        }
+        uchar ucMoveAnim = pPlayer->GetMoveAnim();
+        BitStream.Write(ucMoveAnim);
 
         // Always send extra info (Was: "Write spawn info if he's spawned")
         if (true)
@@ -191,7 +179,10 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
                 BitStream.Write(pVehicle->GetID());
 
                 SOccupiedSeatSync seat;
-                seat.data.ucSeat = pPlayer->GetOccupiedVehicleSeat();
+                {
+                    const uint uiSeat = pPlayer->GetOccupiedVehicleSeat();
+                    seat.data.ucSeat = uiSeat <= 0xFF ? static_cast<unsigned char>(uiSeat) : 0xFF;
+                }
                 BitStream.Write(&seat);
             }
             else
@@ -214,10 +205,10 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
             alpha.data.ucAlpha = pPlayer->GetAlpha();
             BitStream.Write(&alpha);
 
-            BitStream.Write(pPlayer->GetInterior());
+            BitStream.Write(static_cast<unsigned char>(pPlayer->GetInterior()));
 
             // Write the weapons of the player weapon slots
-            for (unsigned int i = 0; i < 16; ++i)
+            for (unsigned char i = 0; i < 16; ++i)
             {
                 CWeapon* pWeapon = pPlayer->GetWeapon(i);
                 if (pWeapon && pWeapon->ucType != 0)
@@ -229,6 +220,25 @@ bool CPlayerListPacket::Write(NetBitStreamInterface& BitStream) const
                 }
                 else
                     BitStream.WriteBit(false);
+            }
+
+            const SPlayerAnimData& animData = pPlayer->GetAnimationData();
+            bool                   animRuning = animData.IsAnimating();
+
+            BitStream.WriteBit(animRuning);
+            if (animRuning)
+            {
+                BitStream.WriteString(animData.blockName);
+                BitStream.WriteString(animData.animName);
+                BitStream.Write(animData.time);
+                BitStream.WriteBit(animData.loop);
+                BitStream.WriteBit(animData.updatePosition);
+                BitStream.WriteBit(animData.interruptable);
+                BitStream.WriteBit(animData.freezeLastFrame);
+                BitStream.Write(animData.blendTime);
+                BitStream.WriteBit(animData.taskToBeRestoredOnAnimEnd);
+                BitStream.Write(static_cast<double>(animData.startTime));
+                BitStream.Write(animData.speed);
             }
         }
     }

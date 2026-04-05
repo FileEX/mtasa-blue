@@ -36,7 +36,7 @@ void CLuaBuildingDefs::AddClass(lua_State* luaVM)
 }
 
 CBuilding* CLuaBuildingDefs::CreateBuilding(lua_State* const luaVM, std::uint16_t modelId, CVector pos, std::optional<CVector> rot,
-                                                  std::optional<std::uint8_t> interior)
+                                            std::optional<std::uint8_t> interior)
 {
     CLuaMain* pLuaMain = m_pLuaManager->GetVirtualMachine(luaVM);
 
@@ -44,11 +44,6 @@ CBuilding* CLuaBuildingDefs::CreateBuilding(lua_State* const luaVM, std::uint16_
     CResource* pResource = pLuaMain->GetResource();
     if (!pResource)
         throw std::logic_error("Cannot be done in current environment");
-
-    const CMtaVersion& minClientVersion = pResource->GetMinClientFromMetaXml();
-
-    if (minClientVersion < CMtaVersion(SERVERSIDE_BUILDING_MIN_CLIENT_VERSION))
-        throw std::logic_error("Expected client min_mta_version in meta.xml hinger or equal than " SERVERSIDE_BUILDING_MIN_CLIENT_VERSION);
 
     if (!CBuildingManager::IsValidModel(modelId))
         throw std::invalid_argument("Invalid building model id");

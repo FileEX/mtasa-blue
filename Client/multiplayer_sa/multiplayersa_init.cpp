@@ -10,6 +10,7 @@
  *****************************************************************************/
 
 #include "StdInc.h"
+#include "SharedUtil.Memory.h"
 #define DECLARE_PROFILER_SECTION_multiplayersa_init
 #include "profiler/SharedUtil.Profiler.h"
 
@@ -31,6 +32,8 @@ MTAEXPORT CMultiplayer* InitMultiplayerInterface(CCoreInterface* pCore)
     g_pCore = pCore;
     assert(pGameInterface);
     assert(g_pNet);
+
+    SetMemoryAllocationFailureHandler();
 
     // create an instance of our multiplayer class
     pMultiplayer = new CMultiplayerSA;
@@ -86,4 +89,32 @@ void CallGameEntityRenderHandler(CEntitySAInterface* pEntity)
     if (!pEntity || pEntity->nType != ENTITY_TYPE_DUMMY)
         if (pGameEntityRenderHandler)
             pGameEntityRenderHandler(pEntity);
+}
+
+void OnRequestStreamingMemoryRelief(std::uint32_t bytesNeeded)
+{
+    if (!pGameInterface)
+        return;
+
+    auto* pStreaming = pGameInterface->GetStreaming();
+    if (!pStreaming)
+        return;
+
+    pStreaming->MakeSpaceFor(bytesNeeded);
+}
+
+static volatile bool s_bStreamingReliefRequested = false;
+
+void OnRequestDeferredStreamingMemoryRelief()
+{
+    s_bStreamingReliefRequested = true;
+}
+
+void ProcessDeferredStreamingMemoryRelief()
+{
+    if (!s_bStreamingReliefRequested)
+        return;
+
+    s_bStreamingReliefRequested = false;
+    OnRequestStreamingMemoryRelief(4 * 1024 * 1024);
 }

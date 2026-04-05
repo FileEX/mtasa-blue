@@ -36,7 +36,7 @@ namespace
     };
     std::list<STimingFunction> ms_TimingFunctionStack;
     bool                       ms_bRegisterdPostCallHook = false;
-}            // namespace
+}  // namespace
 
 CElementDeleter*           CLuaDefs::m_pElementDeleter = NULL;
 CBlipManager*              CLuaDefs::m_pBlipManager = NULL;
@@ -232,7 +232,7 @@ void CLuaDefs::DidUseFunction(lua_CFunction f, lua_State* luaVM)
                 if (pFunction)
                 {
                     CResource* pResource = g_pGame->GetResourceManager()->GetResourceFromLuaState(info.luaVM);
-                    SString    strResourceName = pResource ? pResource->GetName() : "unknown";
+                    SString    strResourceName = pResource ? pResource->GetName() : SStringX("unknown");
                     CPerfStatFunctionTiming::GetSingleton()->UpdateTiming(strResourceName, pFunction->GetName().c_str(), elapsedTime, uiDeltaBytes);
                 }
             }

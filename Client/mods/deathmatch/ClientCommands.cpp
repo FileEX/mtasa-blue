@@ -18,14 +18,14 @@ using std::list;
 using std::vector;
 
 #ifdef MTA_DEBUG
-#include <Tlhelp32.h>
-#include <Psapi.h>
-#include <shlwapi.h>
-#include <Utils.h>
+    #include <Tlhelp32.h>
+    #include <Psapi.h>
+    #include <shlwapi.h>
+    #include <Utils.h>
 #endif
 
 // Hide the "conversion from 'unsigned long' to 'DWORD*' of greater size" warning
-#pragma warning(disable:4312)
+#pragma warning(disable : 4312)
 
 extern CClientGame* g_pClientGame;
 
@@ -658,7 +658,7 @@ void DumpPlayer(CClientPlayer* pPlayer, FILE* pFile)
 
     for (uiIndex = 0; uiIndex < NUM_PLAYER_STATS; uiIndex++)
     {
-        fprintf(pFile, "Stat [%u] = %f\n", uiIndex, pPlayer->GetStat(uiIndex));
+        fprintf(pFile, "Stat [%u] = %f\n", uiIndex, pPlayer->GetStat(static_cast<unsigned short>(uiIndex)));
     }
 
     fprintf(pFile, "Streamed in: %u\n", pPlayer->IsStreamedIn());
@@ -771,7 +771,7 @@ void COMMAND_ServerInfo(const char* szCmdLine)
     g_pCore->GetConsole()->Print(*strSpacer);
 }
 
-#if defined (MTA_DEBUG) || defined (MTA_BETA)
+#if defined(MTA_DEBUG) || defined(MTA_BETA)
 
 void COMMAND_ShowSyncing(const char* szCmdLine)
 {
@@ -828,18 +828,15 @@ void COMMAND_GiveWeapon(const char* szCmdLine)
     if (!(szCmdLine && szCmdLine[0]))
         return;
 
-    int nWeaponID = atoi(szCmdLine);
-    /*
-     * Check validity of the command line weapon id.
-     */
+    const auto weaponId = static_cast<unsigned short>(atoi(szCmdLine));
 
-    if (!CClientPickupManager::IsValidWeaponID(nWeaponID))
+    if (!CClientPickupManager::IsValidWeaponID(weaponId))
         return;
 
     CClientPed* pPed = g_pClientGame->GetManager()->GetPlayerManager()->GetLocalPlayer();
     if (pPed)
     {
-        CWeapon* pPlayerWeapon = pPed->GiveWeapon((eWeaponType)nWeaponID, 9999);
+        CWeapon* pPlayerWeapon = pPed->GiveWeapon((eWeaponType)weaponId, 9999);
         if (pPlayerWeapon)
         {
             pPlayerWeapon->SetAsCurrentWeapon();

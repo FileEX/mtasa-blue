@@ -78,6 +78,9 @@ ADD_ENUM(HUD_MONEY, "money")
 ADD_ENUM(HUD_VEHICLE_NAME, "vehicle_name")
 ADD_ENUM(HUD_AREA_NAME, "area_name")
 ADD_ENUM(HUD_RADAR, "radar")
+ADD_ENUM(HUD_RADAR_MAP, "radar_map")
+ADD_ENUM(HUD_RADAR_BLIPS, "radar_blips")
+ADD_ENUM(HUD_RADAR_ALTIMETER, "radar_altimeter")
 ADD_ENUM(HUD_CLOCK, "clock")
 ADD_ENUM(HUD_RADIO, "radio")
 ADD_ENUM(HUD_WANTED, "wanted")
@@ -313,12 +316,11 @@ CXMLNode* UserDataCast(CXMLNode* ptr, lua_State* luaState)
 //
 CLuaTimer* UserDataCast(CLuaTimer* ptr, lua_State* luaState)
 {
-    if (CLuaMain* luaMain = g_pGame->GetLuaManager()->GetVirtualMachine(luaState); luaMain != nullptr)
-    {
-        return luaMain->GetTimerManager()->GetTimerFromScriptID(reinterpret_cast<unsigned long>(ptr));
-    }
+    CLuaManager* luaManager = g_pGame->GetLuaManager();
+    if (!luaManager)
+        return nullptr;
 
-    return nullptr;
+    return luaManager->FindTimerGlobally(reinterpret_cast<unsigned long>(ptr));
 }
 
 //
@@ -494,13 +496,13 @@ CClient* UserDataCast(CClient* ptr, lua_State* luaState)
 //
 SString GetUserDataClassName(void* ptr, lua_State* luaVM, bool bFindElementType)
 {
-    if (CElement* pVar = UserDataCast((CElement*)ptr, luaVM))            // Try element
+    if (CElement* pVar = UserDataCast((CElement*)ptr, luaVM))  // Try element
         return bFindElementType ? pVar->GetTypeName() : GetClassTypeName(pVar);
-    if (auto* pVar = UserDataCast(static_cast<CResource*>(ptr), luaVM))            // Try resource
+    if (auto* pVar = UserDataCast(static_cast<CResource*>(ptr), luaVM))  // Try resource
         return GetClassTypeName(pVar);
-    if (auto* pVar = UserDataCast((CXMLNode*)ptr, luaVM))            // Try xml node
+    if (auto* pVar = UserDataCast((CXMLNode*)ptr, luaVM))  // Try xml node
         return GetClassTypeName(pVar);
-    if (auto* pVar = UserDataCast((CLuaTimer*)ptr, luaVM))            // Try timer
+    if (auto* pVar = UserDataCast((CLuaTimer*)ptr, luaVM))  // Try timer
         return GetClassTypeName(pVar);
     if (auto* pVar = UserDataCast((CAccount*)ptr, luaVM))
         return GetClassTypeName(pVar);
@@ -593,9 +595,9 @@ void MinServerReqCheck(CScriptArgReader& argStream, const char* szVersionReq, co
         {
             if (pResource->GetMinServerRequirement() < szVersionReq)
             {
-                #if MTASA_VERSION_TYPE == VERSION_TYPE_RELEASE
+#if MTASA_VERSION_TYPE >= VERSION_TYPE_UNTESTED
                 argStream.SetVersionWarning(szVersionReq, "server", szReason);
-                #endif
+#endif
             }
         }
     }

@@ -14,6 +14,7 @@
 #include "CWeaponInfo.h"
 #include "CPedSound.h"
 #include "enums/PedState.h"
+#include "enums/PedMoveState.h"
 
 // To avoid VS intellisense highlight errors
 #include <memory>
@@ -178,7 +179,10 @@ struct SSatchelsData
     CVector*                vecAttachedOffsets;
     CVector*                vecAttachedRotation;
 
-    SSatchelsData(CProjectileSAInterface* proj, CVector* offset, CVector* rotation) : pProjectileInterface(proj), vecAttachedOffsets(offset), vecAttachedRotation(rotation) {}
+    SSatchelsData(CProjectileSAInterface* proj, CVector* offset, CVector* rotation)
+        : pProjectileInterface(proj), vecAttachedOffsets(offset), vecAttachedRotation(rotation)
+    {
+    }
 };
 
 inline bool IsValidMoveAnim(std::uint32_t iMoveAnim) noexcept
@@ -189,7 +193,7 @@ inline bool IsValidMoveAnim(std::uint32_t iMoveAnim) noexcept
 class CPed : public virtual CPhysical
 {
 public:
-    virtual ~CPed(){};
+    virtual ~CPed() {};
 
     virtual class CPedSAInterface* GetPedInterface() noexcept = 0;
 
@@ -253,8 +257,9 @@ public:
     virtual void           SetFightingStyle(eFightingStyle style, std::uint8_t styleExtra) = 0;
 
     virtual CEntity* GetContactEntity() const = 0;
+    virtual bool     IsStandingOnEntity() const = 0;
 
-    virtual int GetRunState() const = 0;
+    virtual PedMoveState::Enum GetMoveState() const = 0;
 
     virtual bool GetCanBeShotInVehicle() const = 0;
     virtual bool GetTestForShotInVehicle() const = 0;
@@ -263,7 +268,7 @@ public:
     virtual void SetTestForShotInVehicle(bool test) = 0;
 
     virtual std::uint8_t GetOccupiedSeat() const noexcept = 0;
-    virtual void SetOccupiedSeat(std::uint8_t seat) noexcept = 0;
+    virtual void         SetOccupiedSeat(std::uint8_t seat) noexcept = 0;
 
     virtual void RemoveBodyPart(std::uint8_t boneID, std::uint8_t direction) = 0;
 
@@ -300,9 +305,11 @@ public:
     virtual std::unique_ptr<CPedIK> GetPedIK() = 0;
 
     virtual CEntitySAInterface* GetTargetedObject() const = 0;
-    virtual PedState           GetPedState() const = 0;
+    virtual PedState            GetPedState() const = 0;
 
-    virtual void GetAttachedSatchels(std::vector<SSatchelsData> &satchelsList) const = 0;
+    virtual void GetAttachedSatchels(std::vector<SSatchelsData>& satchelsList) const = 0;
 
     virtual void Say(const ePedSpeechContext& speechId, float probability) = 0;
+
+    virtual void SetInWaterFlags(bool inWater) = 0;
 };
