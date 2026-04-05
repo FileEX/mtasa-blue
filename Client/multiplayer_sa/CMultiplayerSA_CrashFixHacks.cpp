@@ -1345,6 +1345,166 @@ bail44:
 }
 
 ////////////////////////////////////////////////////////////////////////
+// CAEMP3BankLoader::Service (PENDING_LOAD_ONE_SOUND)
+//
+// BankNumBytes from the stream header may exceed the buffer limit for
+// the rep movsd at 0x4DFE92. Clamp it so the copy stays within bounds.
+// Only bail when OffsetBytes is at or past the buffer end.
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_Misc47  0x4DFE7D
+#define HOOKSIZE_CrashFix_Misc47 5
+DWORD                 RETURN_CrashFix_Misc47 = 0x4DFE82;
+DWORD                 RETURN_CrashFix_Misc47B = 0x4DFFED;
+void _declspec(naked) HOOK_CrashFix_Misc47()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        // Execute replaced code
+        mov     edx, [ebx-1Ah]          // edx = req.SlotInfo
+        mov     edi, [edx]              // edi = SlotInfo->OffsetBytes
+
+        // Safe limit = m_BufferSize - OffsetBytes; bail if no room at all
+        mov     eax, [ebp+18h]          // eax = m_BufferSize
+        sub     eax, edi                // eax = space left in m_Buffer
+        jbe     bail47                  // OffsetBytes >= m_BufferSize
+
+        // Reduce safe limit to SlotInfo->NumBytes if that is smaller
+        mov     ecx, [edx+4]            // ecx = SlotInfo->NumBytes
+        cmp     eax, ecx
+        jb      skip47                  // space_left is the tighter bound
+        mov     eax, ecx                // NumBytes is the tighter bound
+skip47:
+
+        // Clamp BankNumBytes to the safe limit if needed
+        mov     ecx, [ebx-12h]          // ecx = req.BankNumBytes
+        cmp     ecx, eax
+        jbe     ok47                    // already within range
+
+        mov     [ebx-12h], eax          // req.BankNumBytes = safe limit
+        push    47
+        call    CrashAverted
+
+ok47:
+        jmp     RETURN_CrashFix_Misc47
+
+bail47:
+        push    47
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc47B
+    }
+    // clang-format on
+}
+
+////////////////////////////////////////////////////////////////////////
+// CAEMP3BankLoader::Service (PENDING_READ, whole-bank path)
+//
+// Same buffer overflow risk as Misc47, but on the whole-bank memcpy
+// at 0x4DFF90. Clamp BankNumBytes so the copy stays within bounds.
+// Only bail when OffsetBytes is at or past the buffer end.
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_Misc48  0x4DFF78
+#define HOOKSIZE_CrashFix_Misc48 5
+DWORD                 RETURN_CrashFix_Misc48 = 0x4DFF7D;
+DWORD                 RETURN_CrashFix_Misc48B = 0x4DFFED;
+void _declspec(naked) HOOK_CrashFix_Misc48()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        // Execute replaced code
+        mov     edx, [ebx-1Ah]          // edx = req.SlotInfo
+        mov     edi, [edx]              // edi = SlotInfo->OffsetBytes
+
+        // Safe limit = m_BufferSize - OffsetBytes; bail if no room at all
+        mov     eax, [ebp+18h]          // eax = m_BufferSize
+        sub     eax, edi                // eax = space left in m_Buffer
+        jbe     bail48                  // OffsetBytes >= m_BufferSize
+
+        // Reduce safe limit to SlotInfo->NumBytes if that is smaller
+        mov     ecx, [edx+4]            // ecx = SlotInfo->NumBytes
+        cmp     eax, ecx
+        jb      skip48                  // space_left is the tighter bound
+        mov     eax, ecx                // NumBytes is the tighter bound
+skip48:
+
+        // Clamp BankNumBytes to the safe limit if needed
+        mov     ecx, [ebx-12h]          // ecx = req.BankNumBytes
+        cmp     ecx, eax
+        jbe     ok48                    // already within range
+
+        mov     [ebx-12h], eax          // req.BankNumBytes = safe limit
+        push    48
+        call    CrashAverted
+
+ok48:
+        jmp     RETURN_CrashFix_Misc48
+
+bail48:
+        push    48
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc48B
+    }
+    // clang-format on
+}
+
+////////////////////////////////////////////////////////////////////////
+// CAEMP3BankLoader::Service (PENDING_READ, single-sound path)
+//
+// BankNumBytes from the stream header can be negative or larger than
+// the slot holds. Clamp to SlotInfo->NumBytes so the second read still
+// runs and the bank slot gets populated. Bail only when the bank index
+// is out of range, which would write past the end of the slot array
+// when the second read completes.
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_Misc49  0x4E0094
+#define HOOKSIZE_CrashFix_Misc49 5
+DWORD                 RETURN_CrashFix_Misc49 = 0x4E0099;
+DWORD                 RETURN_CrashFix_Misc49B = 0x4DFFED;
+void _declspec(naked) HOOK_CrashFix_Misc49()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        // Execute replaced subtraction; EAX must be unchanged for the return site at 0x4E0099
+        sub     ecx, [eax]              // ecx = nextOrEnd - Sounds[SoundID].BankOffsetBytes
+
+        // Bail on out-of-range Bank: it is used as an array index for slot writes
+        movsx   edx, word ptr [ebx-2]   // edx = req.Bank
+        test    edx, edx
+        js      bail49
+        cmp     dx, [ebp+0Eh]           // Bank >= m_BankLkupCnt?
+        jae     bail49
+
+        // Clamp BankNumBytes to SlotInfo->NumBytes
+        mov     edx, [ebx-1Ah]          // edx = req.SlotInfo
+        mov     edi, [edx+4]            // edi = SlotInfo->NumBytes
+        test    ecx, ecx                // negative result (underflow)?
+        js      clamp49
+        cmp     ecx, edi                // BankNumBytes > NumBytes?
+        jbe     ok49
+
+clamp49:
+        mov     ecx, edi
+        push    49
+        call    CrashAverted
+
+ok49:
+        mov     [ebx-12h], ecx          // req.BankNumBytes = ecx
+        jmp     RETURN_CrashFix_Misc49
+
+bail49:
+        push    49
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc49B
+    }
+    // clang-format on
+}
+
+////////////////////////////////////////////////////////////////////////
 // CAnimBlendAssociation::SetFinishCallback
 //
 // "this" is invalid
@@ -2154,6 +2314,110 @@ static void _declspec(naked) HOOK_CrashFix_VBInstWeightsNull()
         mov     eax, ARRAY_D3D9VertexTypeSize        // eax = array base address
         mov     eax, [eax + ecx*4]                   // eax = D3D9VertexTypeSize[type]
         ret
+    }
+    // clang-format on
+}
+
+////////////////////////////////////////////////////////////////////////
+// __rpD3D9VertexDeclarationInstIndicesRemap
+//
+// Same NULL locked VB crash as InstV3d/InstV3dMorph and InstWeights,
+// but in the bone index remap path. Called only from __rpD3D9SkinGeometryReinstance
+// when rendering skinned meshes (peds, deformable vehicles).
+// This condition indicates out of video mem, but we'll alleviate it by calling OnVideoMemoryExhausted following the avert.
+// The caller adds a vertex element byte offset to the locked pointer, so mem
+// is typically a small non-zero value (e.g 0x28) rather than exact NULL.
+// Any address below 0x10000 (Windows null guard page) is invalid.
+//
+// __cdecl: [esp+4]=type, [esp+8]=mem, [esp+C]=src, [esp+10]=remap, [esp+14]=numVerts, [esp+18]=stride
+// Returns D3D9VertexTypeSize[type] in EAX.
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_VBInstIndicesRemapNull   0x754C80
+#define HOOKSIZE_CrashFix_VBInstIndicesRemapNull  8
+#define HOOKCHECK_CrashFix_VBInstIndicesRemapNull 0x8B
+DWORD RETURN_CrashFix_VBInstIndicesRemapNull = 0x754C88;
+
+static void _declspec(naked) HOOK_CrashFix_VBInstIndicesRemapNull()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        cmp     dword ptr [esp+8], 10000h            // mem below 64KB null guard page?
+        jb      bail_out_remap
+
+        // Replicate overwritten prologue (8 bytes: mov edx,[esp+4]; mov eax,[esp+0Ch])
+        mov     edx, [esp+4]                         // type
+        mov     eax, [esp+0Ch]                       // src
+        jmp     RETURN_CrashFix_VBInstIndicesRemapNull
+
+    bail_out_remap:
+        push    eax
+        push    ecx
+        push    edx
+        call    OnVideoMemoryExhausted
+        pop     edx
+        pop     ecx
+        pop     eax
+
+        push    53
+        call    CrashAverted
+
+        // Return D3D9VertexTypeSize[type]
+        mov     ecx, [esp+4]                         // ecx = type
+        mov     eax, ARRAY_D3D9VertexTypeSize        // eax = array base address
+        mov     eax, [eax + ecx*4]                   // eax = D3D9VertexTypeSize[type]
+        ret
+    }
+    // clang-format on
+}
+
+////////////////////////////////////////////////////////////////////////
+// _RwD3D9DynamicVertexBufferCreate
+//
+// NULL VB pointer crash when reusing a DynamicVertexBuffer list entry
+// whose prior CreateVertexBuffer call failed (out of video mem).
+// The entry has in_use=0, pVB=NULL, size=old_size. When the function
+// finds this entry with a non-matching size, it tries to Release() the
+// old VB through a NULL pointer (crash at 0x003F5A3A / 0x7F5A3A: mov ecx,[eax]).
+// This condition indicates out of video mem, but we'll alleviate it by calling OnVideoMemoryExhausted following the avert.
+//
+// Hook at 0x7F5A36 replaces: mov eax,[esi+8]; push eax; mov ecx,[eax]
+// On NULL, skip the Release() block and continue to VB reallocation.
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_DynVBCreateNull   0x7F5A36
+#define HOOKSIZE_CrashFix_DynVBCreateNull  6
+#define HOOKCHECK_CrashFix_DynVBCreateNull 0x8B
+DWORD RETURN_CrashFix_DynVBCreateNull = 0x7F5A3C;
+DWORD RETURN_CrashFix_DynVBCreateNull_Skip = 0x7F5A8F;
+
+static void _declspec(naked) HOOK_CrashFix_DynVBCreateNull()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        mov     eax, [esi+8]                         // load VB pointer from list entry
+        test    eax, eax
+        jz      bail_out_dynvb
+
+        // Replicate overwritten bytes (push eax; mov ecx,[eax])
+        push    eax
+        mov     ecx, [eax]
+        jmp     RETURN_CrashFix_DynVBCreateNull
+
+    bail_out_dynvb:
+        push    eax
+        push    ecx
+        push    edx
+        call    OnVideoMemoryExhausted
+        pop     edx
+        pop     ecx
+        pop     eax
+
+        push    46
+        call    CrashAverted
+        jmp     RETURN_CrashFix_DynVBCreateNull_Skip
     }
     // clang-format on
 }
@@ -3432,6 +3696,86 @@ static void __fastcall HOOK_CColModel_MakeMultipleAlloc(CColModelSAInterface* pC
     reinterpret_cast<MakeMultipleAlloc_t>(0x1564A10)(pColModel);
 }
 
+////////////////////////////////////////////////////////////////////////
+// AreTexturesUsedByRequestedModels
+//
+// Null ms_modelInfoPtrs[modelId] during requested-list and channel iteration
+////////////////////////////////////////////////////////////////////////
+#define HOOKPOS_CrashFix_Misc50  0x156650D
+#define HOOKSIZE_CrashFix_Misc50 7
+DWORD                 RETURN_CrashFix_Misc50 = 0x1566514;
+DWORD                 RETURN_CrashFix_Misc50B = 0x1566552;
+void _declspec(naked) HOOK_CrashFix_Misc50()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        test    edx, edx
+        js      skip
+        mov     ecx, dword ptr [edx*4 + 0A9B0C8h]
+        test    ecx, ecx
+        jnz     cont
+    skip:
+        push    50
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc50B
+    cont:
+        jmp     RETURN_CrashFix_Misc50
+    }
+    // clang-format on
+}
+
+#define HOOKPOS_CrashFix_Misc51  0x156658A
+#define HOOKSIZE_CrashFix_Misc51 7
+DWORD                 RETURN_CrashFix_Misc51 = 0x1566591;
+DWORD                 RETURN_CrashFix_Misc51B = 0x15665BB;
+void _declspec(naked) HOOK_CrashFix_Misc51()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        test    eax, eax
+        js      skip
+        mov     edx, dword ptr [eax*4 + 0A9B0C8h]
+        test    edx, edx
+        jnz     cont
+    skip:
+        push    51
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc51B
+    cont:
+        jmp     RETURN_CrashFix_Misc51
+    }
+    // clang-format on
+}
+
+#define HOOKPOS_CrashFix_Misc52  0x15665C9
+#define HOOKSIZE_CrashFix_Misc52 7
+DWORD                 RETURN_CrashFix_Misc52 = 0x15665D0;
+DWORD                 RETURN_CrashFix_Misc52B = 0x1566600;
+void _declspec(naked) HOOK_CrashFix_Misc52()
+{
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+    // clang-format off
+    __asm
+    {
+        test    eax, eax
+        js      skip
+        mov     ecx, dword ptr [eax*4 + 0A9B0C8h]
+        test    ecx, ecx
+        jnz     cont
+    skip:
+        push    52
+        call    CrashAverted
+        jmp     RETURN_CrashFix_Misc52B
+    cont:
+        jmp     RETURN_CrashFix_Misc52
+    }
+    // clang-format on
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 // Setup hooks for CrashFixHacks
@@ -3470,6 +3814,9 @@ void CMultiplayerSA::InitHooks_CrashFixHacks()
     EZHookInstall(CrashFix_Misc43);
     EZHookInstall(CrashFix_Misc45);
     EZHookInstall(CrashFix_Misc44);
+    EZHookInstall(CrashFix_Misc47);
+    EZHookInstall(CrashFix_Misc48);
+    EZHookInstall(CrashFix_Misc49);
     EZHookInstallChecked(CrashFix_Misc30);
     EZHookInstall(CrashFix_Misc32);
     EZHookInstall(CrashFix_Misc33);
@@ -3481,6 +3828,7 @@ void CMultiplayerSA::InitHooks_CrashFixHacks()
     EZHookInstallChecked(CrashFix_VBInstV3dNull);
     EZHookInstallChecked(CrashFix_VBInstV3dMorphNull);
     EZHookInstallChecked(CrashFix_VBInstWeightsNull);
+    EZHookInstallChecked(CrashFix_DynVBCreateNull);
     EZHookInstall(CrashFix_Misc39);
     EZHookInstall(CClumpModelInfo_GetFrameFromId);
     EZHookInstallChecked(CEntity_GetBoundRect);
@@ -3508,6 +3856,10 @@ void CMultiplayerSA::InitHooks_CrashFixHacks()
     EZHookInstall(CFire_ProcessFire);
 
     EZHookInstall(CColModel_MakeMultipleAlloc);
+
+    EZHookInstall(CrashFix_Misc50);
+    EZHookInstall(CrashFix_Misc51);
+    EZHookInstall(CrashFix_Misc52);
 
     // Install train crossing crashfix (the temporary variable is required for the template logic)
     void (*temp)() = HOOK_TrainCrossingBarrierCrashFix<RETURN_CObject_Destructor_TrainCrossing_Check, RETURN_CObject_Destructor_TrainCrossing_Invalid>;

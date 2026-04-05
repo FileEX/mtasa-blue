@@ -24,10 +24,11 @@
 // from the RwTexDictionary before it is destroyed.
 static std::unordered_set<unsigned short> g_StreamingProtectedTxdSlots;
 
-#define VAR_CTxdStore_ms_pTxdPool   0xC8800C
-#define FUNC_CTxdStore__RemoveRef   0x731A30
-#define FUNC_CStreaming__requestTxd 0x407100
-#define FUNC_CTxdStore__RemoveSlot  0x731E90
+#define VAR_CTxdStore_ms_pTxdPool    0xC8800C
+#define FUNC_CTxdStore__RemoveRef    0x731A30
+#define FUNC_CTxdStore__SetTxdParent 0x7316E0
+#define FUNC_CStreaming__requestTxd  0x407100
+#define FUNC_CTxdStore__RemoveSlot   0x731E90
 
 // CMemoryMgr::MallocAlign / FreeAlign wrappers (hooked by MTA in
 // CMultiplayerSA_FixMallocAlign.cpp > SafeMallocAlign / SafeFreeAlign).
@@ -185,12 +186,12 @@ static void __declspec(naked) HOOK_SetMissionDoesntRequireModel_TxdCheck()
     __asm
     {
         movsx   esi, word ptr [ecx+0Ah]
-        
+
         test    esi, esi
         js      skip_txd
         cmp     esi, 5000                  // SA_TXD_POOL_CAPACITY
         jge     skip_txd
-        
+
         add     esi, 20000                 // 4E20h
         jmp     RETURN_SetMissionDoesntRequireModel_TxdCheck // 0x409CA0
 
@@ -213,7 +214,7 @@ static void __declspec(naked) HOOK_SetModelTxdIsDeletable_TxdCheck()
     __asm
     {
         movsx   edx, word ptr [ecx+0Ah]
-        
+
         test    edx, edx
         js      skip_txd
         cmp     edx, 5000                  // SA_TXD_POOL_CAPACITY
@@ -230,10 +231,35 @@ static void __declspec(naked) HOOK_SetModelTxdIsDeletable_TxdCheck()
     // clang-format on
 }
 
+// Shared refcount-decrement path used by both the RemoveTxd parent
+// cascade hook and the RemoveRef replacement.
+static void __cdecl ProcessTxdRemoveRef(CPoolSAInterface<CTextureDictonarySAInterface>* pool, int index)
+{
+    if (!pool)
+        return;
+
+    if (index < 0 || index >= pool->m_nSize)
+        return;
+
+    if (pool->m_byteMap[index].bEmpty)
+        return;
+
+    auto* pEntry = &pool->m_pObjects[index];
+    --pEntry->usUsagesCount;
+
+    if (static_cast<short>(pEntry->usUsagesCount) <= 0)
+    {
+        if (index < CTxdPoolSA::SA_TXD_POOL_CAPACITY && g_StreamingProtectedTxdSlots.count(static_cast<unsigned short>(index)) == 0)
+        {
+            using RemoveModel_t = void(__cdecl*)(int);
+            reinterpret_cast<RemoveModel_t>(FUNC_RemoveModel)(index + pGame->GetBaseIDforTXD());
+        }
+    }
+}
+
 // Hook for CTxdStore::RemoveTxd parent cascade block (0x731ED4)
 // Replaces: mov ax, [esi+6]
 //           cmp ax, 0FFFFh
-// Validates parent index and slot liveness before allowing RemoveModel cascade.
 static void __declspec(naked) HOOK_RemoveTxd_ParentCascade()
 {
     MTA_VERIFY_HOOK_LOCAL_SIZE;
@@ -241,35 +267,10 @@ static void __declspec(naked) HOOK_RemoveTxd_ParentCascade()
     __asm
     {
         movsx   eax, word ptr [esi+6]      // parentIndex
-        cmp     ax, -1
-        je      skip_parent_cascade
-
-        test    eax, eax
-        js      skip_parent_cascade
-
-        cmp     eax, 5000                  // SA_TXD_POOL_CAPACITY
-        jge     skip_parent_cascade
-
-        // Validate parent slot is still allocated
-        mov     edx, [ecx+4]               // bytemap pointer
-        cmp     byte ptr [edx+eax], 0
-        jns     continue_cascade           // sign bit clear = slot is allocated
-        jmp     skip_parent_cascade        // slot is free, skip
-
-    continue_cascade:
-        mov     ecx, [ecx]                 // pool objects base
-        lea     edx, [eax+eax*2]
-        lea     ecx, [ecx+edx*4]           // parent object pointer
-
-        dec     word ptr [ecx+4]           // parent usUsagesCount
-        cmp     word ptr [ecx+4], 0
-        jg      skip_parent_cascade
-
-        add     eax, 20000
-        push    eax
-        mov     edx, 0x4089A0              // CStreaming::RemoveModel
-        call    edx
-        add     esp, 4
+        push    eax                        // index
+        push    ecx                        // pool
+        call    ProcessTxdRemoveRef
+        add     esp, 8
 
     skip_parent_cascade:
         mov     dword ptr [esi], 0
@@ -286,27 +287,7 @@ static void __declspec(naked) HOOK_RemoveTxd_ParentCascade()
 static void __cdecl Hook_CTxdStore_RemoveRef(int index)
 {
     auto* pool = *reinterpret_cast<CPoolSAInterface<CTextureDictonarySAInterface>**>(VAR_CTxdStore_ms_pTxdPool);
-    if (!pool)
-        return;
-
-    if (index < 0 || index >= pool->m_nSize)
-        return;
-
-    if (pool->m_byteMap[index].bEmpty)
-        return;
-
-    auto* entry = &pool->m_pObjects[index];
-    --entry->usUsagesCount;
-
-    // Signed comparison matches the original jg (jump if greater) at 0x731A4C
-    if (static_cast<short>(entry->usUsagesCount) <= 0)
-    {
-        if (index < CTxdPoolSA::SA_TXD_POOL_CAPACITY && g_StreamingProtectedTxdSlots.count(static_cast<unsigned short>(index)) == 0)
-        {
-            using RemoveModel_t = void(__cdecl*)(int);
-            reinterpret_cast<RemoveModel_t>(FUNC_RemoveModel)(index + pGame->GetBaseIDforTXD());
-        }
-    }
+    ProcessTxdRemoveRef(pool, index);
 }
 
 // Replaces CStreaming::requestTxd (0x407100).
@@ -448,17 +429,34 @@ void CTxdPoolSA::RemoveTextureDictonarySlot(std::uint32_t uiTxdId)
     // Clear stale parent references: any alive slot whose usParentIndex
     // points to the slot being freed must be reset to 0xFFFF so SA's
     // getTexDictionary doesnt read a free pool entry and crash.
+    // Also null the child's RW parent pointer so texture lookups
+    // don't follow a freed dictionary.
     {
-        auto*      pool = *m_ppTxdPoolInterface;
-        const auto parentVal = static_cast<unsigned short>(uiTxdId);
+        using SetTxdParent_t = void(__cdecl*)(RwTexDictionary*, RwTexDictionary*);
+
+        auto*                pool = *m_ppTxdPoolInterface;
+        const unsigned short parentVal = static_cast<unsigned short>(uiTxdId);
         for (int i = 0; i < pool->m_nSize; ++i)
         {
             if (!pool->m_byteMap[i].bEmpty && pool->m_pObjects[i].usParentIndex == parentVal)
+            {
                 pool->m_pObjects[i].usParentIndex = static_cast<unsigned short>(-1);
+
+                if (pool->m_pObjects[i].rwTexDictonary)
+                {
+                    reinterpret_cast<SetTxdParent_t>(FUNC_CTxdStore__SetTxdParent)(pool->m_pObjects[i].rwTexDictonary, nullptr);
+                }
+            }
         }
     }
 
     (*m_ppTxdPoolInterface)->Release(uiTxdId);
+
+    // Lower the free-slot hints so the next search starts here
+    if (uiTxdId < m_uiFreeSlotHint)
+        m_uiFreeSlotHint = uiTxdId;
+    if (uiTxdId >= static_cast<std::uint32_t>(MAX_STREAMING_TXD_SLOT) && uiTxdId < m_uiFreeSlotHintAbove)
+        m_uiFreeSlotHintAbove = uiTxdId;
 }
 
 bool CTxdPoolSA::IsFreeTextureDictonarySlot(std::uint32_t uiTxdId)
@@ -466,7 +464,14 @@ bool CTxdPoolSA::IsFreeTextureDictonarySlot(std::uint32_t uiTxdId)
     if (!m_ppTxdPoolInterface || !(*m_ppTxdPoolInterface))
         return false;
 
-    return (*m_ppTxdPoolInterface)->IsEmpty(uiTxdId);
+    // IsContains is bounds-checked; returns false for out-of-range indices.
+    return !(*m_ppTxdPoolInterface)->IsContains(static_cast<std::int32_t>(uiTxdId));
+}
+
+bool CTxdPoolSA::IsTxdLoaded(std::uint32_t uiTxdId)
+{
+    auto* pSlot = GetTextureDictonarySlot(uiTxdId);
+    return pSlot && pSlot->rwTexDictonary != nullptr;
 }
 
 std::uint32_t CTxdPoolSA::GetFreeTextureDictonarySlot()
@@ -487,10 +492,26 @@ std::uint32_t CTxdPoolSA::GetFreeTextureDictonarySlotInRange(std::uint32_t maxEx
         return static_cast<std::uint32_t>(-1);
 
     const std::uint32_t limit = std::min(maxExclusive, static_cast<std::uint32_t>(pool->m_nSize));
-    for (std::uint32_t i = 0; i < limit; ++i)
+
+    // Start from the hint to skip known-occupied lower slots
+    std::uint32_t start = (m_uiFreeSlotHint < limit) ? m_uiFreeSlotHint : 0;
+    for (std::uint32_t i = start; i < limit; ++i)
     {
         if (pool->m_byteMap[i].bEmpty)
+        {
+            m_uiFreeSlotHint = i + 1;
             return i;
+        }
+    }
+
+    // Hint was stale; scan the range below the hint
+    for (std::uint32_t i = 0; i < start; ++i)
+    {
+        if (pool->m_byteMap[i].bEmpty)
+        {
+            m_uiFreeSlotHint = i + 1;
+            return i;
+        }
     }
 
     return static_cast<std::uint32_t>(-1);
@@ -506,10 +527,27 @@ std::uint32_t CTxdPoolSA::GetFreeTextureDictonarySlotAbove(std::uint32_t minIncl
     if (!pool->m_byteMap || pool->m_nSize <= static_cast<int>(minInclusive))
         return static_cast<std::uint32_t>(-1);
 
-    for (std::uint32_t i = minInclusive; i < static_cast<std::uint32_t>(pool->m_nSize); ++i)
+    const std::uint32_t poolSize = static_cast<std::uint32_t>(pool->m_nSize);
+
+    // Start from the hint to skip known-occupied lower slots
+    std::uint32_t start = (m_uiFreeSlotHintAbove >= minInclusive && m_uiFreeSlotHintAbove < poolSize) ? m_uiFreeSlotHintAbove : minInclusive;
+    for (std::uint32_t i = start; i < poolSize; ++i)
     {
         if (pool->m_byteMap[i].bEmpty)
+        {
+            m_uiFreeSlotHintAbove = i + 1;
             return i;
+        }
+    }
+
+    // Hint was stale; scan the range below the hint
+    for (std::uint32_t i = minInclusive; i < start; ++i)
+    {
+        if (pool->m_byteMap[i].bEmpty)
+        {
+            m_uiFreeSlotHintAbove = i + 1;
+            return i;
+        }
     }
 
     return static_cast<std::uint32_t>(-1);
