@@ -54,7 +54,7 @@ void CLuaElementDefs::LoadFunctions()
         {"getElementAttachedOffsets", GetElementAttachedOffsets},
         {"getElementAlpha", GetElementAlpha},
         {"getElementLighting", ArgumentParser<GetElementLighting>},
-        {"isElementOnScreen", ArgumentParser<IsElementOnScreen>},
+        {"isElementOnScreen", ArgumentParserWarn<nullptr, IsElementOnScreen>},
         {"getElementHealth", GetElementHealth},
         {"getElementModel", GetElementModel},
         {"isElementStreamedIn", IsElementStreamedIn},
