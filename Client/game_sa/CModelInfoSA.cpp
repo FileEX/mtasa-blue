@@ -655,6 +655,33 @@ bool CModelInfoSA::IsLoaded()
     return false;
 }
 
+static void UnlinkStreamingInfoNeighbors(CStreamingInfo* pStreamInfo)
+{
+    if (!pStreamInfo || !pGame)
+        return;
+
+    if (pStreamInfo->loadState == eModelLoadState::LOADSTATE_NOT_LOADED)
+        return;
+
+    CStreaming* pStreaming = pGame->GetStreaming();
+    if (!pStreaming)
+        return;
+
+    constexpr unsigned short kInvalid = static_cast<unsigned short>(-1);
+    const unsigned short     prev = pStreamInfo->prevId;
+    const unsigned short     next = pStreamInfo->nextId;
+
+    CStreamingInfo* pPrev = (prev != kInvalid) ? pStreaming->GetStreamingInfo(prev) : nullptr;
+    CStreamingInfo* pNext = (next != kInvalid) ? pStreaming->GetStreamingInfo(next) : nullptr;
+
+    // If one side already points outside the streaming array, cut the
+    // reachable side instead of copying the bad link forward.
+    if (pPrev)
+        pPrev->nextId = (next == kInvalid || pNext) ? next : kInvalid;
+    if (pNext)
+        pNext->prevId = (prev == kInvalid || pPrev) ? prev : kInvalid;
+}
+
 bool CModelInfoSA::DoIsLoaded()
 {
     // return (BOOL)*(BYTE *)(ARRAY_ModelLoaded + 20*dwModelID);
@@ -673,24 +700,7 @@ bool CModelInfoSA::DoIsLoaded()
                 if (pStreamInfo)
                 {
                     // Unlink from SA's loaded-entry list before zeroing the link fields to avoid linked list corruptin
-                    if (pStreamInfo->loadState != eModelLoadState::LOADSTATE_NOT_LOADED)
-                    {
-                        constexpr unsigned short kInvalid = static_cast<unsigned short>(-1);
-                        const unsigned short     prev = pStreamInfo->prevId;
-                        const unsigned short     next = pStreamInfo->nextId;
-                        if (prev != kInvalid)
-                        {
-                            CStreamingInfo* pPrev = pGame->GetStreaming()->GetStreamingInfo(prev);
-                            if (pPrev)
-                                pPrev->nextId = next;
-                        }
-                        if (next != kInvalid)
-                        {
-                            CStreamingInfo* pNext = pGame->GetStreaming()->GetStreamingInfo(next);
-                            if (pNext)
-                                pNext->prevId = prev;
-                        }
-                    }
+                    UnlinkStreamingInfoNeighbors(pStreamInfo);
                     pStreamInfo->prevId = static_cast<unsigned short>(-1);
                     pStreamInfo->nextId = static_cast<unsigned short>(-1);
                     pStreamInfo->nextInImg = static_cast<unsigned short>(-1);
@@ -1095,12 +1105,12 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
         return;
 
     // Slot allocated (e.g. via engineRequestTXD) but TXD data isn't loaded yet.
-    // For unloaded models, just record the new TXD ID; SA streaming handles refs
-    // and texture resolution when it loads both the model and its TXD dependency.
-    // Loaded models fall through to the ref-transfer path below. CTxdStore_AddRef
-    // only touches usUsagesCount (never dereferences rwTexDictonary), and
-    // BuildTxdTextureMap returns an empty map for null TXDs, making the rebind a
-    // no-op. The real texture data arrives later via engineImageLinkTXD + restream.
+    // For unloaded models without geometry, record the new TXD ID and transfer
+    // entity refs so callers' pre-added refs are consumed. Loaded models fall
+    // through to the ref-transfer path below. CTxdStore_AddRef only touches
+    // usUsagesCount (never dereferences rwTexDictonary), and BuildTxdTextureMap
+    // returns an empty map for null TXDs, making the rebind a no-op. The real
+    // texture data arrives later via engineImageLinkTXD + restream.
     if (CTxdStore_GetTxd(usID) == nullptr)
     {
         if (!pGame || pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(usID))
@@ -1113,6 +1123,19 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
 
             ++ms_uiTxdAssignmentGeneration;
             m_pInterface->usTextureDictionary = usID;
+
+            // Transfer entity refs between TXDs even without geometry loaded.
+            // Callers that pre-add refs to prevent underflow expect them to be
+            // consumed here; skipping this leaks refs on the old TXD.
+            size_t referencesCount = m_pInterface->usNumberOfRefs;
+            for (size_t i = 0; i < referencesCount; i++)
+                CTxdStore_AddRef(usID);
+
+            if (CTxdStore_GetTxd(usOldTxdId) != nullptr)
+            {
+                for (size_t i = 0; i < referencesCount; i++)
+                    CTxdStore_RemoveRef(usOldTxdId);
+            }
             return;
         }
 
@@ -2173,6 +2196,12 @@ void CModelInfoSA::ResetVehicleDummies(bool bRemoveFromDummiesMap)
         pVehicleModel = static_cast<CVehicleModelInfoSAInterface*>(GetInterface());
         if (!pVehicleModel || !pVehicleModel->pVisualInfo)
         {
+            if (pVehicleModel && pVehicleModel->usNumberOfRefs > 0)
+            {
+                if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+                    CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
+                pVehicleModel->usNumberOfRefs--;
+            }
             if (bRemoveFromDummiesMap)
                 ms_ModelDefaultDummiesPosition.erase(iter);
             return;
@@ -2215,6 +2244,12 @@ void CModelInfoSA::ResetAllVehicleDummies()
             pVehicleModel = static_cast<CVehicleModelInfoSAInterface*>(pModelInfoSA->GetInterface());
             if (!pVehicleModel || !pVehicleModel->pVisualInfo)
             {
+                if (pVehicleModel && pVehicleModel->usNumberOfRefs > 0)
+                {
+                    if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+                        CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
+                    pVehicleModel->usNumberOfRefs--;
+                }
                 it = ms_ModelDefaultDummiesPosition.erase(it);
                 continue;
             }
@@ -2764,24 +2799,7 @@ static void UnlinkAndResetStreamingInfo(CStreamingInfo* pStreamInfo)
     if (!pStreamInfo)
         return;
 
-    if (pStreamInfo->loadState != eModelLoadState::LOADSTATE_NOT_LOADED && pGame && pGame->GetStreaming())
-    {
-        constexpr unsigned short kInvalid = static_cast<unsigned short>(-1);
-        const unsigned short     prev = pStreamInfo->prevId;
-        const unsigned short     next = pStreamInfo->nextId;
-        if (prev != kInvalid)
-        {
-            CStreamingInfo* pPrev = pGame->GetStreaming()->GetStreamingInfo(prev);
-            if (pPrev)
-                pPrev->nextId = next;
-        }
-        if (next != kInvalid)
-        {
-            CStreamingInfo* pNext = pGame->GetStreaming()->GetStreamingInfo(next);
-            if (pNext)
-                pNext->prevId = prev;
-        }
-    }
+    UnlinkStreamingInfoNeighbors(pStreamInfo);
     *pStreamInfo = CStreamingInfo{};
     pStreamInfo->prevId = static_cast<unsigned short>(-1);
     pStreamInfo->nextId = static_cast<unsigned short>(-1);
