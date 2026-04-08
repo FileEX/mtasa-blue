@@ -243,11 +243,7 @@ void CBuildingsPoolSA::RestoreBackup()
                 if (!pBuilding->HasMatrix())
                     pBuilding->AllocateMatrix();
 
-                pBuilding->matrix->vRight = it->second.vRight;
-                pBuilding->matrix->vFront = it->second.vFront;
-                pBuilding->matrix->vUp = it->second.vUp;
-                pBuilding->matrix->vPos = it->second.vPos;
-
+                *pBuilding->matrix = it->second;
                 m_buildingMatrix.erase(it);
             }
 
