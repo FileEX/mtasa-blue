@@ -74,7 +74,7 @@ public:
     static bool                                            EngineRemoveImage(CClientIMG* pImg);
     static uint                                            EngineImageGetFilesCount(CClientIMG* pImg);
     static bool                                            EngineImageLinkDFF(CClientIMG* pImg, std::variant<size_t, std::string_view> file, uint uiModelID);
-    static bool                                            EngineImageLinkTXD(CClientIMG* pImg, std::variant<size_t, std::string_view> file, uint uiModelID);
+    static bool                                            EngineImageLinkTXD(CClientIMG* pImg, std::variant<size_t, std::string_view> file, uint uiTxdID);
     static bool                                            EngineRestoreDFFImage(uint uiModelID);
     static bool                                            EngineRestoreTXDImage(uint uiModelID);
     static std::vector<std::string_view>                   EngineImageGetFileList(CClientIMG* pImg);
@@ -88,14 +88,16 @@ public:
     static size_t EngineGetPoolUsedCapacity(ePools pool);
     static bool   EngineSetPoolCapacity(lua_State* luaVM, ePools pool, size_t newSize);
 
-    static uint EngineRequestTXD(lua_State* const luaVM, std::string strTxdName);
-    static bool EngineFreeTXD(uint txdID);
+    static std::variant<bool, uint> EngineRequestTXD(lua_State* const luaVM, std::string strTxdName);
+    static bool                     EngineFreeTXD(uint txdID);
 
     static bool EngineStreamingRequestModel(lua_State* const luaVM, std::uint16_t modelId, std::optional<bool> addReference, std::optional<bool> blocking);
     static bool EngineStreamingReleaseModel(lua_State* const luaVM, std::uint16_t modelId, std::optional<bool> removeReference);
     static eModelLoadState EngineStreamingGetModelLoadState(std::uint16_t modelId);
 
     static void EnginePreloadWorldArea(CVector position, std::optional<PreloadAreaOption> option);
+    static bool EngineRestreamModel(std::uint16_t modelId);
+    static void EngineRestream(std::optional<RestreamOption> option);
 
 private:
     static void AddEngineColClass(lua_State* luaVM);

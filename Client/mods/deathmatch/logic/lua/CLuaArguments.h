@@ -12,7 +12,7 @@
 
 extern "C"
 {
-    #include "lua.h"
+#include "lua.h"
 }
 
 #include <net/bitstream.h>
@@ -57,6 +57,7 @@ public:
     CLuaArgument* PushNumber(double dNumber);
     CLuaArgument* PushString(const std::string& string);
     CLuaArgument* PushString(const std::string_view& string);
+    CLuaArgument* PushString(const CStringName& string);
     CLuaArgument* PushString(const char* string);
     CLuaArgument* PushElement(CClientEntity* pElement);
     CLuaArgument* PushArgument(const CLuaArgument& argument);

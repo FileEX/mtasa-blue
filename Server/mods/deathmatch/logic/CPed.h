@@ -19,9 +19,9 @@
 #include <CMatrix.h>
 
 #define INVALID_VEHICLE_SEAT 0xFF
-#define NUM_PLAYER_STATS 343
-#define WEAPON_SLOTS 13
-#define STEALTH_KILL_RANGE 2.5f
+#define NUM_PLAYER_STATS     343
+#define WEAPON_SLOTS         13
+#define STEALTH_KILL_RANGE   2.5f
 
 enum ePedMoveAnim
 {
@@ -309,6 +309,9 @@ public:
     void                   SetAnimationProgress(float progress) { m_animData.progress = progress; };
     void                   SetAnimationSpeed(float speed) { m_animData.speed = speed; };
 
+    void SetHanging(bool hanging) noexcept { m_hanging = hanging; }
+    bool IsHanging() const noexcept { return m_hanging; }
+
 protected:
     bool ReadSpecialData(const int iLine) override;
 
@@ -350,6 +353,7 @@ protected:
     CVehicle*                            m_pJackingVehicle;
     SPlayerAnimData                      m_animData{};
     float                                m_cameraRotation{};
+    bool                                 m_hanging{false};  // Is the player hanging during a climb task?
 
     CVehicle*    m_pVehicle;
     unsigned int m_uiVehicleSeat;

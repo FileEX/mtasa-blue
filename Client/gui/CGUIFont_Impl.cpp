@@ -88,7 +88,7 @@ void CGUIFont_Impl::SetNativeResolution(int iX, int iY)
 float CGUIFont_Impl::GetCharacterWidth(int iChar, float fScale)
 {
     char szBuf[2];
-    szBuf[0] = iChar;
+    szBuf[0] = static_cast<char>(iChar);
     szBuf[1] = 0;
 
     return m_pFont->getTextExtent(szBuf, fScale);
@@ -96,8 +96,8 @@ float CGUIFont_Impl::GetCharacterWidth(int iChar, float fScale)
 
 float CGUIFont_Impl::GetFontHeight(float fScale)
 {
-    float fHeight = m_pFont->getFontHeight(fScale);            // average height.. not the maximum height for long characters such as 'g' or 'j'
-    fHeight += 2.0f;                                           // so hack it
+    float fHeight = m_pFont->getFontHeight(fScale);  // average height.. not the maximum height for long characters such as 'g' or 'j'
+    fHeight += 2.0f;                                 // so hack it
 
     return fHeight;
 }

@@ -14,6 +14,11 @@ void InitLocalization(bool bShowErrors);
 void HandleSpecialLaunchOptions();
 void HandleDuplicateLaunching();
 void HandleCustomStartMessage();
+void HandleOnQuitCommand();
+void HandleTrouble();
+void HandleResetSettings();
+void HandleNotUsedMainMenu();
+void ConfigureWerDumpPath();
 void PreLaunchWatchDogs();
 void PostRunWatchDogs(int iReturnCode);
 void HandleIfGTAIsAlreadyRunning();
@@ -22,7 +27,6 @@ void CheckAntiVirusStatus();
 void CheckDataFiles();
 void CheckLibVersions();
 int  LaunchGame(SString strCmdLine);
-void HandleOnQuitCommand();
 
-#define EXIT_OK     (0)
-#define EXIT_ERROR  (1)
+#define EXIT_OK    (0)
+#define EXIT_ERROR (1)

@@ -43,7 +43,8 @@ C3DMarker* C3DMarkersSA::CreateMarker(DWORD Identifier, T3DMarkerType dwType, CV
 
     DWORD dwFunc = FUNC_PlaceMarker;
     DWORD dwReturn = 0;
-    _asm
+    // clang-format off
+    __asm
     {
         push    bZCheck     // zCheck  ##SA##
         push    0           // normalZ ##SA##
@@ -64,6 +65,7 @@ C3DMarker* C3DMarkersSA::CreateMarker(DWORD Identifier, T3DMarkerType dwType, CV
         mov     dwReturn, eax
         add     esp, 0x3C
     }
+    // clang-format on
 
     if (dwReturn)
     {
@@ -102,7 +104,7 @@ C3DMarker* C3DMarkersSA::FindMarker(DWORD Identifier)
 
 void C3DMarkersSA::ReinitMarkers()
 {
-    using Function_ShutdownMarkers = void(__cdecl *)();
+    using Function_ShutdownMarkers = void(__cdecl*)();
     auto shutdownMarkers = reinterpret_cast<Function_ShutdownMarkers>(0x722710);
 
     using Function_InitMarkers = void(__cdecl*)();

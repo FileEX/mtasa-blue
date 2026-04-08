@@ -16,7 +16,7 @@
 class CPedSAInterface;
 class CTaskManagerSA;
 
-#define FUNC_CPedIntelligence_TestForStealthKill    0x601E00
+#define FUNC_CPedIntelligence_TestForStealthKill 0x601E00
 
 class CFightManagerInterface
 {
@@ -35,9 +35,9 @@ public:
     CPedSAInterface*        pPed;
     std::uint8_t            taskManager[0x30];            // +4 (really CTaskManagerSAInterface)
     BYTE                    bPad[16];
-    CFightManagerInterface* fightInterface;            // +24
+    CFightManagerInterface* fightInterface;  // +24
     BYTE                    bPad2[184];
-    DWORD                   vehicleScanner;            // +212 (really CVehicleScannerSAInterface)
+    DWORD                   vehicleScanner;  // +212 (really CVehicleScannerSAInterface)
 };
 
 class CPedIntelligenceSA : public CPedIntelligence
@@ -55,4 +55,5 @@ public:
     bool                         TestForStealthKill(CPed* pPed, bool bUnk);
     CTaskSAInterface*            SetTaskDuckSecondary(unsigned short nLengthOfDuck);
     CTaskSimpleUseGun*           GetTaskUseGun();
+    CTaskSimpleFight*            GetFightTask();
 };

@@ -1,6 +1,7 @@
 project "pcre"
 	language "C++"
 	targetname "pcre3"
+	warnings "Off"
 
 	defines { "HAVE_CONFIG_H" }
 	includedirs { "." }
@@ -40,6 +41,6 @@ project "pcre"
 		defines { "HAVE_STRTOLL" }
 		kind "StaticLib"
 
-	filter {"system:windows"}
+	filter "system:windows"
 		linkoptions { "/ignore:4217", "/ignore:4049" }
 		disablewarnings { "4251" }

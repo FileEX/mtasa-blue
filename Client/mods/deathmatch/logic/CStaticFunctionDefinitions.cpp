@@ -27,10 +27,13 @@
 #include <game/CWeapon.h>
 #include <game/CWeaponStat.h>
 #include <game/CWeaponStatManager.h>
+#include <SharedUtil.Misc.h>
 #include <game/CBuildingRemoval.h>
 #include <game/TaskBasic.h>
 #include <enums/VehicleType.h>
 #include <enums/HandlingProperty.h>
+#include <cmath>
+#include <numbers>
 
 using std::list;
 
@@ -99,6 +102,14 @@ CStaticFunctionDefinitions::CStaticFunctionDefinitions(CLuaManager* pLuaManager,
 
 CStaticFunctionDefinitions::~CStaticFunctionDefinitions()
 {
+}
+
+void CStaticFunctionDefinitions::PreInitialize(CCoreInterface* pCore, CGame* pGame, CClientGame* pClientGame, CEvents* pEvents)
+{
+    m_pCore = pCore;
+    m_pGame = pGame;
+    m_pClientGame = pClientGame;
+    m_pEvents = pEvents;
 }
 
 bool CStaticFunctionDefinitions::AddEvent(CLuaMain& LuaMain, const char* szName, bool bAllowRemoteTrigger)
@@ -260,15 +271,18 @@ bool CStaticFunctionDefinitions::ClearChatBox()
 
 bool CStaticFunctionDefinitions::OutputChatBox(const char* szText, unsigned char ucRed, unsigned char ucGreen, unsigned char ucBlue, bool bColorCoded)
 {
-    if (!szText || szText[0] == '\0')
+    // Early null-safety checks to prevent crashes when called before initialization
+    if (!m_pCore || !g_pClientGame || !szText || szText[0] == '\0')
         return false;
-    
-    SString textToProcess = bColorCoded ? RemoveColorCodes(szText) : szText;
-    
-    if (textToProcess.length() > MAX_OUTPUTCHATBOX_LENGTH) {
-        return false;
-    }
 
+    // Calculate length without color codes when bColorCoded is true for accurate visible text length
+    SString textToProcess = bColorCoded ? RemoveColorCodes(szText) : SStringX(szText);
+
+    // Reject messages that exceed the maximum length
+    if (textToProcess.length() > MAX_OUTPUTCHATBOX_LENGTH)
+        return false;
+
+    // Fire the onClientChatMessage event
     CLuaArguments Arguments;
     Arguments.PushString(szText);
     Arguments.PushNumber(ucRed);
@@ -276,33 +290,18 @@ bool CStaticFunctionDefinitions::OutputChatBox(const char* szText, unsigned char
     Arguments.PushNumber(ucBlue);
 
     bool bCancelled = !g_pClientGame->GetRootEntity()->CallEvent("onClientChatMessage", Arguments, false);
-    if (!bCancelled) {
+    if (!bCancelled)
+    {
         m_pCore->ChatPrintfColor("%s", bColorCoded, ucRed, ucGreen, ucBlue, szText);
         return true;
     }
-    
+
     return false;
 }
 
 bool CStaticFunctionDefinitions::SetClipboard(SString& strText)
 {
-    std::wstring strUTF = MbUTF8ToUTF16(strText);
-
-    // Open and empty the clipboard
-    OpenClipboard(NULL);
-    EmptyClipboard();
-
-    // Allocate the clipboard buffer and copy the data
-    HGLOBAL  hBuf = GlobalAlloc(GMEM_DDESHARE, strUTF.length() * sizeof(wchar_t) + sizeof(wchar_t));
-    wchar_t* buf = reinterpret_cast<wchar_t*>(GlobalLock(hBuf));
-    wcscpy(buf, strUTF.c_str());
-    GlobalUnlock(hBuf);
-
-    // Copy the data into the clipboard
-    SetClipboardData(CF_UNICODETEXT, hBuf);
-
-    // Close the clipboard
-    CloseClipboard();
+    SharedUtil::SetClipboardText(strText);
     return true;
 }
 
@@ -577,7 +576,6 @@ bool CStaticFunctionDefinitions::GetElementBoundingBox(CClientEntity& Entity, CV
             pModelInfo = g_pGame->GetModelInfo(building.GetModel());
             break;
         }
-
     }
 
     if (pModelInfo)
@@ -672,6 +670,11 @@ bool CStaticFunctionDefinitions::GetElementDistanceFromCentreOfMassToBaseOfModel
         case CCLIENTWEAPON:
         {
             fDistance = static_cast<CClientObject&>(Entity).GetDistanceFromCentreOfMassToBaseOfModel();
+            return true;
+        }
+        case CCLIENTBUILDING:
+        {
+            fDistance = static_cast<CClientBuilding&>(Entity).GetDistanceFromCentreOfMassToBaseOfModel();
             return true;
         }
     }
@@ -1025,13 +1028,13 @@ bool CStaticFunctionDefinitions::SetElementID(CClientEntity& Entity, const char*
     return false;
 }
 
-bool CStaticFunctionDefinitions::SetElementData(CClientEntity& Entity, const char* szName, CLuaArgument& Variable, bool bSynchronize)
+bool CStaticFunctionDefinitions::SetElementData(CClientEntity& Entity, CStringName name, CLuaArgument& Variable, bool bSynchronize)
 {
-    assert(szName);
-    assert(strlen(szName) <= MAX_CUSTOMDATA_NAME_LENGTH);
+    assert(name);
+    assert(name->length() <= MAX_CUSTOMDATA_NAME_LENGTH);
 
     bool          bIsSynced;
-    CLuaArgument* pCurrentVariable = Entity.GetCustomData(szName, false, &bIsSynced);
+    CLuaArgument* pCurrentVariable = Entity.GetCustomData(name, false, &bIsSynced);
     if (!pCurrentVariable || Variable != *pCurrentVariable || bIsSynced != bSynchronize)
     {
         if (bSynchronize && !Entity.IsLocalEntity())
@@ -1039,9 +1042,9 @@ bool CStaticFunctionDefinitions::SetElementData(CClientEntity& Entity, const cha
             NetBitStreamInterface* pBitStream = g_pNet->AllocateNetBitStream();
             // Write element ID, name length and the name. Also write the variable.
             pBitStream->Write(Entity.GetID());
-            unsigned short usNameLength = static_cast<unsigned short>(strlen(szName));
+            unsigned short usNameLength = static_cast<unsigned short>(name->length());
             pBitStream->WriteCompressed(usNameLength);
-            pBitStream->Write(szName, usNameLength);
+            pBitStream->Write(name.ToCString(), usNameLength);
             Variable.WriteToBitStream(*pBitStream);
 
             // Send the packet and deallocate
@@ -1050,14 +1053,14 @@ bool CStaticFunctionDefinitions::SetElementData(CClientEntity& Entity, const cha
         }
 
         // Set its custom data
-        Entity.SetCustomData(szName, Variable, bSynchronize);
+        Entity.SetCustomData(name, Variable, bSynchronize);
         return true;
     }
 
     return false;
 }
 
-bool CStaticFunctionDefinitions::RemoveElementData(CClientEntity& Entity, const char* szName)
+bool CStaticFunctionDefinitions::RemoveElementData(CClientEntity& Entity, CStringName name)
 {
     // TODO
     return false;
@@ -1280,7 +1283,7 @@ bool CStaticFunctionDefinitions::SetElementParent(CClientEntity& Entity, CClient
         const char* szTypeName = pTemp->GetTypeName();
         if (szTypeName && strcmp(szTypeName, "map") == 0)
         {
-            bValidParent = true;            // parents must be a map
+            bValidParent = true;  // parents must be a map
             break;
         }
 
@@ -1499,6 +1502,13 @@ bool CStaticFunctionDefinitions::SetElementHealth(CClientEntity& Entity, float f
             // Grab the model
             CClientPed& Ped = static_cast<CClientPed&>(Entity);
 
+            // If setting health to 0 for local player, clear stale damage data
+            // and set proper scripted death parameters for DoWastedCheck
+            if (fHealth == 0.0f && Ped.IsLocalPlayer() && Ped.GetHealth() > 0.0f)
+            {
+                g_pClientGame->SetScriptedDeathData();
+            }
+
             // Set the new health
             Ped.SetHealth(Clamp(0.0f, fHealth, Ped.GetMaxHealth()));
             return true;
@@ -1527,7 +1537,8 @@ bool CStaticFunctionDefinitions::SetElementModel(CClientEntity& Entity, unsigned
 {
     RUN_CHILDREN(SetElementModel(**iter, usModel))
 
-    auto callOnChangeEvent = [](auto &element, uint16_t usCurrentModel, uint16_t usModel) {
+    auto callOnChangeEvent = [](auto& element, uint16_t usCurrentModel, uint16_t usModel)
+    {
         CLuaArguments Arguments;
         Arguments.PushNumber(usCurrentModel);
         Arguments.PushNumber(usModel);
@@ -1747,7 +1758,7 @@ bool CStaticFunctionDefinitions::GetPedClothes(CClientPed& Ped, unsigned char uc
     return false;
 }
 
-bool CStaticFunctionDefinitions::GetPedControlState(CClientPed& const ped, const std::string control, bool& state) noexcept
+bool CStaticFunctionDefinitions::GetPedControlState(CClientPed& ped, const std::string& control, bool& state) noexcept
 {
     if (&ped == GetLocalPlayer())
         return GetControlState(control.c_str(), state);
@@ -1793,7 +1804,7 @@ bool CStaticFunctionDefinitions::GetPedAnalogControlState(CClientPed& Ped, const
         unsigned int     uiIndex;
 
         if (bRawInput)
-            cs = Ped.m_rawControllerState;            // use the raw controller values without MTA glitch fixes modifying our raw inputs
+            cs = Ped.m_rawControllerState;  // use the raw controller values without MTA glitch fixes modifying our raw inputs
         else
             Ped.GetControllerState(cs);
 
@@ -2402,13 +2413,15 @@ bool CStaticFunctionDefinitions::RemovePedClothes(CClientEntity& Entity, unsigne
     return false;
 }
 
-bool CStaticFunctionDefinitions::SetPedControlState(CClientPed& const ped, const std::string control, const bool state) noexcept
+bool CStaticFunctionDefinitions::SetPedControlState(CClientPed& ped, const std::string& control, bool state) noexcept
 {
     if (&ped == GetLocalPlayer())
         return SetControlState(control.c_str(), state);
 
     if (ped.m_Pad.SetControlState(control.c_str(), state))
         return true;
+
+    return false;
 }
 
 bool CStaticFunctionDefinitions::SetPedDoingGangDriveby(CClientEntity& Entity, bool bGangDriveby)
@@ -2539,7 +2552,7 @@ bool CStaticFunctionDefinitions::SetPedAimTarget(CClientEntity& Entity, CVector&
             // Ped rotation
             CVector vecRot;
             Ped.GetRotationRadians(vecRot);
-            float fRotZ = -vecRot.fZ;            // Counter-clockwise
+            float fRotZ = -vecRot.fZ;  // Counter-clockwise
             fRotZ = (fRotZ > PI) ? fRotZ - PI * 2 : fRotZ;
 
             // Rotation difference
@@ -2680,7 +2693,8 @@ bool CStaticFunctionDefinitions::GetTypeIndexFromClothes(const char* szTexture, 
     {
         std::vector<const SPlayerClothing*> pPlayerClothing = CClientPlayerClothes::GetClothingGroup(ucType);
 
-        if (!pPlayerClothing.empty()) {
+        if (!pPlayerClothing.empty())
+        {
             for (unsigned char ucIter = 0; ucIter < pPlayerClothing.size(); ucIter++)
             {
                 if ((szTexture == NULL || strcmp(szTexture, pPlayerClothing[ucIter]->texture.c_str()) == 0) &&
@@ -2906,7 +2920,7 @@ bool CStaticFunctionDefinitions::BlowVehicle(CClientEntity& Entity, std::optiona
     if (!IS_VEHICLE(&Entity))
         return false;
 
-    CClientVehicle& vehicle = static_cast<CClientVehicle&>(Entity);
+    CClientVehicle&  vehicle = static_cast<CClientVehicle&>(Entity);
     VehicleBlowFlags blow;
 
     blow.withExplosion = withExplosion.value_or(true);
@@ -2920,8 +2934,8 @@ bool CStaticFunctionDefinitions::BlowVehicle(CClientEntity& Entity, std::optiona
         CVector position;
         vehicle.GetPosition(position);
 
-        const auto type = vehicle.GetType();
-        const auto state = (blow.withExplosion ? VehicleBlowState::AWAITING_EXPLOSION_SYNC : VehicleBlowState::BLOWN);
+        const auto     type = vehicle.GetType();
+        const auto     state = (blow.withExplosion ? VehicleBlowState::AWAITING_EXPLOSION_SYNC : VehicleBlowState::BLOWN);
         eExplosionType explosion;
 
         switch (type)
@@ -2961,7 +2975,7 @@ bool CStaticFunctionDefinitions::GetVehicleHeadLightColor(CClientVehicle& Vehicl
 
 bool CStaticFunctionDefinitions::GetVehicleCurrentGear(CClientVehicle& Vehicle, unsigned short& currentGear)
 {
-    currentGear = Vehicle.GetCurrentGear();
+    currentGear = static_cast<unsigned short>(Vehicle.GetCurrentGear());
     return true;
 }
 
@@ -3256,7 +3270,8 @@ bool CStaticFunctionDefinitions::SetVehicleLightState(CClientEntity& Entity, uns
     return false;
 }
 
-bool CStaticFunctionDefinitions::SetVehiclePanelState(CClientEntity& Entity, unsigned char ucPanel, unsigned char ucState, bool spawnFlyingComponent, bool breakGlass)
+bool CStaticFunctionDefinitions::SetVehiclePanelState(CClientEntity& Entity, unsigned char ucPanel, unsigned char ucState, bool spawnFlyingComponent,
+                                                      bool breakGlass)
 {
     RUN_CHILDREN(SetVehiclePanelState(**iter, ucPanel, ucState, spawnFlyingComponent, breakGlass))
 
@@ -4828,12 +4843,13 @@ bool CStaticFunctionDefinitions::SetBlipVisibleDistance(CClientEntity& Entity, u
     return false;
 }
 
-CClientMarker* CStaticFunctionDefinitions::CreateMarker(CResource& Resource, const CVector& vecPosition, const char* szType, float fSize, const SColor color, bool ignoreAlphaLimits)
+CClientMarker* CStaticFunctionDefinitions::CreateMarker(CResource& Resource, const CVector& vecPosition, const char* szType, float fSize, const SColor color,
+                                                        bool ignoreAlphaLimits)
 {
     assert(szType);
 
     // Grab the type id
-    unsigned char ucType = CClientMarker::StringToType(szType);
+    unsigned char ucType = static_cast<unsigned char>(CClientMarker::StringToType(szType));
     if (ucType != CClientMarker::MARKER_INVALID)
     {
         // Create the marker
@@ -4878,7 +4894,7 @@ bool CStaticFunctionDefinitions::SetMarkerType(CClientEntity& Entity, const char
     RUN_CHILDREN(SetMarkerType(**iter, szType))
 
     // Grab the new type ID
-    unsigned char ucType = CClientMarker::StringToType(szType);
+    unsigned char ucType = static_cast<unsigned char>(CClientMarker::StringToType(szType));
     if (ucType != CClientMarker::MARKER_INVALID)
     {
         // Is this a marker?
@@ -4991,7 +5007,7 @@ bool CStaticFunctionDefinitions::SetMarkerTargetArrowProperties(CClientEntity& E
     if (!IS_MARKER(&Entity))
         return false;
 
-    CClientMarker& marker = static_cast<CClientMarker&>(Entity);
+    CClientMarker&     marker = static_cast<CClientMarker&>(Entity);
     CClientCheckpoint* checkpoint = marker.GetCheckpoint();
     if (!checkpoint)
         return false;
@@ -5005,14 +5021,45 @@ bool CStaticFunctionDefinitions::SetMarkerTargetArrowProperties(CClientEntity& E
 
 bool CStaticFunctionDefinitions::GetCameraMatrix(CVector& vecPosition, CVector& vecLookAt, float& fRoll, float& fFOV)
 {
+    if (!m_pCamera)
+        return false;
+
     m_pCamera->GetPosition(vecPosition);
     m_pCamera->GetFixedTarget(vecLookAt, &fRoll);
-    fFOV = m_pCamera->GetFOV();
+
+    fFOV = m_pCamera->GetAccurateFOV();
+
+    if (fRoll == 0.0f)
+    {
+        // Calculate roll from camera matrix when not directly available
+        CMatrix matrix;
+        m_pCamera->GetMatrix(matrix);
+
+        CVector worldUp(0.0f, 0.0f, 1.0f);
+        CVector cameraUp = matrix.vUp;
+        CVector cameraRight = matrix.vRight;
+
+        // Project camera up vector onto plane perpendicular to camera front
+        CVector projectedUp = cameraUp - matrix.vFront * cameraUp.DotProduct(&matrix.vFront);
+        if (projectedUp.Length() <= FLOAT_EPSILON)
+            return true;
+
+        projectedUp.Normalize();
+
+        float cosRoll = worldUp.DotProduct(&projectedUp);
+        float sinRoll = cameraRight.DotProduct(&worldUp);
+
+        fRoll = std::atan2(sinRoll, cosRoll) * (180.0f / std::numbers::pi_v<float>);
+    }
+
     return true;
 }
 
 CClientEntity* CStaticFunctionDefinitions::GetCameraTarget()
 {
+    if (!m_pCamera)
+        return nullptr;
+
     if (!m_pCamera->IsInFixedMode())
         return m_pCamera->GetTargetEntity();
     return NULL;
@@ -5020,12 +5067,22 @@ CClientEntity* CStaticFunctionDefinitions::GetCameraTarget()
 
 bool CStaticFunctionDefinitions::GetCameraInterior(unsigned char& ucInterior)
 {
-    ucInterior = static_cast<unsigned char>(g_pGame->GetWorld()->GetCurrentArea());
+    if (!g_pGame)
+        return false;
+
+    auto world = g_pGame->GetWorld();
+    if (!world)
+        return false;
+
+    ucInterior = static_cast<unsigned char>(world->GetCurrentArea());
     return true;
 }
 
 bool CStaticFunctionDefinitions::SetCameraMatrix(const CVector& vecPosition, CVector* pvecLookAt, float fRoll, float fFOV)
 {
+    if (!m_pCamera)
+        return false;
+
     if (!m_pCamera->IsInFixedMode())
     {
         m_pCamera->ToggleCameraFixedMode(true);
@@ -5041,13 +5098,23 @@ bool CStaticFunctionDefinitions::SetCameraMatrix(const CVector& vecPosition, CVe
         m_pCamera->GetFixedTarget(vecPrevLookAt);
         m_pCamera->SetFixedTarget(vecPrevLookAt, fRoll);
     }
+
+    if (!std::isfinite(fFOV) || fFOV <= 0.0f)
+        fFOV = 70.0f;
+    else if (fFOV >= 180.0f)
+        fFOV = 179.0f;
+
     m_pCamera->SetFOV(fFOV);
     return true;
 }
 
 bool CStaticFunctionDefinitions::SetCameraTarget(CClientEntity* pEntity)
 {
-    assert(pEntity);
+    if (!m_pCamera || !pEntity)
+        return false;
+
+    if (pEntity->IsBeingDeleted())
+        return false;
 
     switch (pEntity->GetType())
     {
@@ -5086,30 +5153,45 @@ bool CStaticFunctionDefinitions::SetCameraTarget(CClientEntity* pEntity)
 
 bool CStaticFunctionDefinitions::SetCameraTarget(const CVector& vecTarget)
 {
+    if (!m_pCamera)
+        return false;
+
     m_pCamera->SetOrbitTarget(vecTarget);
     return true;
 }
 
 bool CStaticFunctionDefinitions::SetCameraInterior(unsigned char ucInterior)
 {
-    g_pGame->GetWorld()->SetCurrentArea(ucInterior);
+    if (!g_pGame)
+        return false;
+
+    auto world = g_pGame->GetWorld();
+    if (!world)
+        return false;
+
+    world->SetCurrentArea(ucInterior);
     return true;
 }
 
 bool CStaticFunctionDefinitions::FadeCamera(bool bFadeIn, float fFadeTime, unsigned char ucRed, unsigned char ucGreen, unsigned char ucBlue)
 {
     CClientCamera* pCamera = m_pManager->GetCamera();
+    if (!pCamera || !g_pClientGame)
+        return false;
+
     g_pClientGame->SetInitiallyFadedOut(false);
 
     if (bFadeIn)
     {
         pCamera->FadeIn(fFadeTime);
-        g_pGame->GetHud()->SetComponentVisible(HUD_AREA_NAME, !g_pClientGame->GetHudAreaNameDisabled());
+        if (g_pGame && g_pGame->GetHud())
+            g_pGame->GetHud()->SetComponentVisible(HUD_AREA_NAME, !g_pClientGame->GetHudAreaNameDisabled());
     }
     else
     {
         pCamera->FadeOut(fFadeTime, ucRed, ucGreen, ucBlue);
-        g_pGame->GetHud()->SetComponentVisible(HUD_AREA_NAME, false);
+        if (g_pGame && g_pGame->GetHud())
+            g_pGame->GetHud()->SetComponentVisible(HUD_AREA_NAME, false);
     }
 
     return true;
@@ -5185,7 +5267,7 @@ bool CStaticFunctionDefinitions::SetCursorAlpha(float fAlpha)
 }
 
 bool CStaticFunctionDefinitions::GUIGetInputEnabled()
-{            // can't inline because statics are defined in .cpp not .h
+{  // can't inline because statics are defined in .cpp not .h
     return m_pGUI->GetGUIInputEnabled();
 }
 
@@ -6403,7 +6485,8 @@ void CStaticFunctionDefinitions::GUILabelSetColor(CClientEntity& Entity, int iR,
         if (IS_CGUIELEMENT_LABEL(&GUIElement))
         {
             // Set the label color
-            static_cast<CGUILabel*>(GUIElement.GetCGUIElement())->SetTextColor(iR, iG, iB);
+            static_cast<CGUILabel*>(GUIElement.GetCGUIElement())
+                ->SetTextColor(static_cast<unsigned char>(iR), static_cast<unsigned char>(iG), static_cast<unsigned char>(iB));
         }
     }
 }
@@ -6682,11 +6765,11 @@ bool CStaticFunctionDefinitions::GetGarageSize(unsigned char ucGarageID, float& 
     if (pGarage)
     {
         pGarage->GetSize(fHeight, fWidth, fDepth);
-        
+
         CVector vecPosition;
         pGarage->GetPosition(vecPosition);
         fHeight -= vecPosition.fZ;
-        
+
         return true;
     }
 
@@ -7014,20 +7097,19 @@ bool CStaticFunctionDefinitions::SetMoonSize(int iSize)
     return false;
 }
 
-bool CStaticFunctionDefinitions::SetFPSLimit(int iLimit)
+void CStaticFunctionDefinitions::SetClientFPSLimit(std::uint16_t fps)
 {
-    if (iLimit == 0 || (iLimit >= 25 && iLimit <= std::numeric_limits<short>::max()))
-    {
-        g_pCore->SetClientScriptFrameRateLimit(iLimit);
-        return true;
-    }
-    return false;
+    g_pCore->GetFPSLimiter()->SetClientEnforcedFPS(fps);
 }
 
-bool CStaticFunctionDefinitions::GetFPSLimit(int& iLimit)
+void CStaticFunctionDefinitions::GetFPSLimit(std::uint16_t& fps) noexcept
 {
-    iLimit = g_pCore->GetFrameRateLimit();
-    return true;
+    fps = g_pCore->GetFPSLimiter()->GetFPSTarget();
+}
+
+void CStaticFunctionDefinitions::SetServerFPSLimit(std::uint16_t fps)
+{
+    g_pCore->GetFPSLimiter()->SetServerEnforcedFPS(fps);
 }
 
 bool CStaticFunctionDefinitions::BindKey(const char* szKey, const char* szHitState, CLuaMain* pLuaMain, const CLuaFunctionRef& iLuaFunction,
@@ -7171,7 +7253,6 @@ bool CStaticFunctionDefinitions::UnbindKey(const char* szKey, const char* szHitS
 
     CKeyBindsInterface* pKeyBinds = g_pCore->GetKeyBinds();
     bool                bKey = pKeyBinds->IsKey(szKey);
-    CCommandBind*       pBind;
 
     if (bKey)
     {
@@ -7189,27 +7270,16 @@ bool CStaticFunctionDefinitions::UnbindKey(const char* szKey, const char* szHitS
             }
         }
 
-        pBind = g_pCore->GetKeyBinds()->GetBindFromCommand(szCommandName, NULL, false, szKey, bCheckHitState, bHitState);
-
+        // Use context-aware removal to only remove resource bindings
         if ((!stricmp(szHitState, "down") || !stricmp(szHitState, "both")) &&
-            pKeyBinds->SetCommandActive(szKey, szCommandName, bHitState, NULL, szResource, false, true, true))
+            pKeyBinds->RemoveCommandFromContext(szKey, szCommandName, BindingContext::RESOURCE, bCheckHitState, bHitState, NULL, szResource))
         {
-            pKeyBinds->SetAllCommandsActive(szResource, false, szCommandName, bHitState, NULL, true, szKey);
-
-            if (pBind)
-                pKeyBinds->Remove(pBind);
-
             bSuccess = true;
         }
         bHitState = false;
         if ((!stricmp(szHitState, "up") || !stricmp(szHitState, "both")) &&
-            pKeyBinds->SetCommandActive(szKey, szCommandName, bHitState, NULL, szResource, false, true, true))
+            pKeyBinds->RemoveCommandFromContext(szKey, szCommandName, BindingContext::RESOURCE, bCheckHitState, bHitState, NULL, szResource))
         {
-            pKeyBinds->SetAllCommandsActive(szResource, false, szCommandName, bHitState, NULL, true, szKey);
-
-            if (pBind)
-                pKeyBinds->Remove(pBind);
-
             bSuccess = true;
         }
     }
@@ -7256,7 +7326,7 @@ bool CStaticFunctionDefinitions::GetAnalogControlState(const char* szControl, fl
     bool             bOnFoot = (!pLocalPlayer->GetRealOccupiedVehicle());
 
     if (bRawInput)
-        cs = pLocalPlayer->m_rawControllerState;            // use the raw controller values without MTA glitch fixes modifying our raw inputs
+        cs = pLocalPlayer->m_rawControllerState;  // use the raw controller values without MTA glitch fixes modifying our raw inputs
     else
         pLocalPlayer->GetControllerState(cs);
 
@@ -8017,7 +8087,9 @@ bool CStaticFunctionDefinitions::FxAddFootSplash(CVector& vecPosition)
     return true;
 }
 
-bool CStaticFunctionDefinitions::FxCreateParticle(FxParticleSystems eFxParticle, CVector& vecPosition, CVector& vecDirection, float fR, float fG, float fB, float fA, bool bRandomizeColors, std::uint32_t iCount, float fBrightness, float fSize, bool bRandomizeSizes, float fLife)
+bool CStaticFunctionDefinitions::FxCreateParticle(FxParticleSystems eFxParticle, CVector& vecPosition, CVector& vecDirection, float fR, float fG, float fB,
+                                                  float fA, bool bRandomizeColors, std::uint32_t iCount, float fBrightness, float fSize, bool bRandomizeSizes,
+                                                  float fLife)
 {
     g_pGame->GetFx()->AddParticle(eFxParticle, vecPosition, vecDirection, fR, fG, fB, fA, bRandomizeColors, iCount, fBrightness, fSize, bRandomizeSizes, fLife);
     return true;
@@ -8052,7 +8124,7 @@ bool CStaticFunctionDefinitions::StopSound(CClientSound& Sound)
 {
     // call onClientSoundStopped
     CLuaArguments Arguments;
-    Arguments.PushString("destroyed");            // Reason
+    Arguments.PushString("destroyed");  // Reason
     Sound.CallEvent("onClientSoundStopped", Arguments, false);
     g_pClientGame->GetElementDeleter()->Delete(&Sound);
     return true;
@@ -8588,7 +8660,7 @@ bool CStaticFunctionDefinitions::SetEntryHandling(CHandlingEntry* pEntry, Handli
                 if (ucValue >= 0 && ucValue <= 29)
                 {
                     if (ucValue != 3 && ucValue != 8 && ucValue != 17 && ucValue != 23)
-                        return true;            // Pretend it worked to avoid script warnings
+                        return true;  // Pretend it worked to avoid script warnings
 
                     pEntry->SetAnimGroup(ucValue);
                     return true;
@@ -9287,7 +9359,7 @@ bool CStaticFunctionDefinitions::GetEntryHandling(CHandlingEntry* pEntry, Handli
             case HandlingProperty::HANDLING_SEATOFFSETDISTANCE:
                 fValue = pEntry->GetSeatOffsetDistance();
                 break;
-            case HandlingProperty::HANDLING_ABS:            // bool
+            case HandlingProperty::HANDLING_ABS:  // bool
                 fValue = (float)(pEntry->GetABS() ? 1 : 0);
                 break;
             default:
@@ -9303,7 +9375,7 @@ bool CStaticFunctionDefinitions::GetEntryHandling(CHandlingEntry* pEntry, Handli
     {
         switch (eProperty)
         {
-            case HandlingProperty::HANDLING_PERCENTSUBMERGED:            // unsigned int
+            case HandlingProperty::HANDLING_PERCENTSUBMERGED:  // unsigned int
                 uiValue = pEntry->GetPercentSubmerged();
                 break;
             case HandlingProperty::HANDLING_MONETARY:
@@ -9898,6 +9970,9 @@ bool CStaticFunctionDefinitions::WarpPedIntoVehicle(CClientPed* pPed, CClientVeh
     if (pPed->IsLocalEntity() != pVehicle->IsLocalEntity())
         return false;
 
+    if (!CClientVehicleManager::IsValidSeat(pVehicle->GetModel(), static_cast<unsigned char>(uiSeat)))
+        return false;
+
     if (pPed->IsLocalEntity())
     {
         //
@@ -9906,14 +9981,6 @@ bool CStaticFunctionDefinitions::WarpPedIntoVehicle(CClientPed* pPed, CClientVeh
 
         // Ped and vehicle alive?
         if (pPed->IsDead() || pVehicle->GetHealth() <= 0.0f)
-            return false;
-
-        // Valid seat id for that vehicle?
-        uchar ucMaxPassengers = CClientVehicleManager::GetMaxPassengerCount(pVehicle->GetModel());
-        if (uiSeat > ucMaxPassengers)
-            return false;
-
-        if (uiSeat > 0 && ucMaxPassengers == 255)
             return false;
 
         // Toss the previous player out of it if neccessary
@@ -9949,8 +10016,8 @@ bool CStaticFunctionDefinitions::WarpPedIntoVehicle(CClientPed* pPed, CClientVeh
 
     // Call the onClientPlayerEnterVehicle event
     CLuaArguments Arguments;
-    Arguments.PushElement(pVehicle);            // vehicle
-    Arguments.PushNumber(uiSeat);               // seat
+    Arguments.PushElement(pVehicle);  // vehicle
+    Arguments.PushNumber(uiSeat);     // seat
     if (IS_PLAYER(pPed))
         pPed->CallEvent("onClientPlayerVehicleEnter", Arguments, true);
     else
@@ -9958,8 +10025,8 @@ bool CStaticFunctionDefinitions::WarpPedIntoVehicle(CClientPed* pPed, CClientVeh
 
     // Call the onClientVehicleEnter event
     CLuaArguments Arguments2;
-    Arguments2.PushElement(pPed);             // player / ped
-    Arguments2.PushNumber(uiSeat);            // seat
+    Arguments2.PushElement(pPed);   // player / ped
+    Arguments2.PushNumber(uiSeat);  // seat
     pVehicle->CallEvent("onClientVehicleEnter", Arguments2, true);
 
     return true;
@@ -9970,7 +10037,7 @@ bool CStaticFunctionDefinitions::RemovePedFromVehicle(CClientPed* pPed)
     // Get the ped / player's occupied vehicle data before pulling it out
     CClientVehicle* pVehicle = pPed->GetOccupiedVehicle();
     unsigned int    uiSeat = pPed->GetOccupiedVehicleSeat();
-    bool            bCancellingWhileEntering = pPed->IsEnteringVehicle();            // Special case here that could cause network trouble.
+    bool            bCancellingWhileEntering = pPed->IsEnteringVehicle();  // Special case here that could cause network trouble.
 
     // Occupied vehicle can be NULL here while entering (Walking up to a vehicle in preparation to getting in/opening the doors)
     if (pVehicle || bCancellingWhileEntering)
@@ -9983,8 +10050,8 @@ bool CStaticFunctionDefinitions::RemovePedFromVehicle(CClientPed* pPed)
             if (pVehicle == NULL)
                 pVehicle = pPed->GetOccupyingVehicle();
 
-            if (pVehicle == NULL)            // Every time I've tested this the occupying Vehicle has been correct, but if it doesn't exist let's not try and
-                                             // call an event on it!
+            if (pVehicle == NULL)  // Every time I've tested this the occupying Vehicle has been correct, but if it doesn't exist let's not try and
+                                   // call an event on it!
                 return false;
         }
 
@@ -10002,9 +10069,9 @@ bool CStaticFunctionDefinitions::RemovePedFromVehicle(CClientPed* pPed)
 
         // Call onClientPlayerVehicleExit
         CLuaArguments Arguments;
-        Arguments.PushElement(pVehicle);            // vehicle
-        Arguments.PushNumber(uiSeat);               // seat
-        Arguments.PushBoolean(false);               // jacker
+        Arguments.PushElement(pVehicle);  // vehicle
+        Arguments.PushNumber(uiSeat);     // seat
+        Arguments.PushBoolean(false);     // jacker
         if (IS_PLAYER(pPed))
             pPed->CallEvent("onClientPlayerVehicleExit", Arguments, true);
         else
@@ -10012,8 +10079,8 @@ bool CStaticFunctionDefinitions::RemovePedFromVehicle(CClientPed* pPed)
 
         // Call onClientVehicleExit
         CLuaArguments Arguments2;
-        Arguments2.PushElement(pPed);             // player / ped
-        Arguments2.PushNumber(uiSeat);            // seat
+        Arguments2.PushElement(pPed);   // player / ped
+        Arguments2.PushNumber(uiSeat);  // seat
         pVehicle->CallEvent("onClientVehicleExit", Arguments2, true);
         return true;
     }

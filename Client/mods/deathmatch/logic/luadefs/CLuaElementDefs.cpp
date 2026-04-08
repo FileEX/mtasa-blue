@@ -978,7 +978,11 @@ CClientEntityResult CLuaElementDefs::GetElementsWithinRange(CVector pos, float r
     if (interior || dimension || typeHash)
     {
         result.erase(std::remove_if(result.begin(), result.end(),
-                                    [&, radiusSq = radius * radius](CElement* pElement) {
+                                    [&, radiusSq = radius * radius](CElement* pElement)
+                                    {
+                                        if (pElement->IsBeingDeleted())
+                                            return true;
+
                                         if (typeHash && typeHash != pElement->GetTypeHash())
                                             return true;
 
@@ -994,7 +998,7 @@ CClientEntityResult CLuaElementDefs::GetElementsWithinRange(CVector pos, float r
                                         if ((elementPos - pos).LengthSquared() > radiusSq)
                                             return true;
 
-                                        return pElement->IsBeingDeleted();
+                                        return false;
                                     }),
                      result.end());
     }
@@ -1789,7 +1793,7 @@ int CLuaElementDefs::SetElementData(lua_State* luaVM)
                 key = key->substr(0, MAX_CUSTOMDATA_NAME_LENGTH);
             }
 
-            if (CStaticFunctionDefinitions::SetElementData(*pEntity, key.ToCString(), value, bSynchronize))
+            if (CStaticFunctionDefinitions::SetElementData(*pEntity, key, value, bSynchronize))
             {
                 lua_pushboolean(luaVM, true);
                 return 1;
@@ -1828,7 +1832,7 @@ int CLuaElementDefs::RemoveElementData(lua_State* luaVM)
                 key = key->substr(0, MAX_CUSTOMDATA_NAME_LENGTH);
             }
 
-            if (CStaticFunctionDefinitions::RemoveElementData(*pEntity, key.ToCString()))
+            if (CStaticFunctionDefinitions::RemoveElementData(*pEntity, key))
             {
                 lua_pushboolean(luaVM, true);
                 return 1;
@@ -2100,7 +2104,7 @@ int CLuaElementDefs::SetElementInterior(lua_State* luaVM)
             }
 
             // Set the interior
-            if (CStaticFunctionDefinitions::SetElementInterior(*pEntity, uiInterior, bSetPosition, vecPosition))
+            if (CStaticFunctionDefinitions::SetElementInterior(*pEntity, static_cast<unsigned char>(uiInterior), bSetPosition, vecPosition))
             {
                 lua_pushboolean(luaVM, true);
                 return 1;

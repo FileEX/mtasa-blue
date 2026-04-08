@@ -888,7 +888,7 @@ int CLuaACLDefs::aclGroupRemoveObject(lua_State* luaVM)
 
 int CLuaACLDefs::hasObjectPermissionTo(lua_State* luaVM)
 {
-    //  bool hasObjectPermissionTo ( string / element theObject, string theAction [, bool defaultPermission = true ] )
+    //  bool hasObjectPermissionTo ( string / element theObject, string theAction [, bool defaultPermission = false ] )
     CResource*                                 pResource = NULL;
     CElement*                                  pElement = NULL;
     SString                                    strObject;
@@ -905,7 +905,7 @@ int CLuaACLDefs::hasObjectPermissionTo(lua_State* luaVM)
         argStream.ReadString(strObject);
 
     argStream.ReadString(strRightName);
-    argStream.ReadBool(bDefault, true);
+    argStream.ReadBool(bDefault, false);
 
     if (!argStream.HasErrors())
     {
@@ -1055,7 +1055,7 @@ int CLuaACLDefs::OOP_isObjectInACLGroup(lua_State* luaVM)
 std::vector<CAccessControlListGroup*> CLuaACLDefs::aclObjectGetGroups(std::string strObject)
 {
     CAccessControlListGroupObject::EObjectType objectType;
-    const char* szObjectAfterDot = strObject.c_str();
+    const char*                                szObjectAfterDot = strObject.c_str();
     if (StringBeginsWith(szObjectAfterDot, "resource."))
     {
         szObjectAfterDot += 9;
@@ -1071,8 +1071,7 @@ std::vector<CAccessControlListGroup*> CLuaACLDefs::aclObjectGetGroups(std::strin
 
     std::vector<CAccessControlListGroup*> groups;
 
-    for (auto iter = m_pACLManager->Groups_Begin();
-        iter != m_pACLManager->Groups_End(); ++iter)
+    for (auto iter = m_pACLManager->Groups_Begin(); iter != m_pACLManager->Groups_End(); ++iter)
     {
         if (!(*iter)->FindObjectMatch(szObjectAfterDot, objectType))
             continue;

@@ -19,7 +19,7 @@
 #include "ehs/ehs.h"
 #include <list>
 
-#define INVALID_RESOURCE_NET_ID     0xFFFF
+#define INVALID_RESOURCE_NET_ID 0xFFFF
 
 class CResource;
 
@@ -67,6 +67,7 @@ public:
     unsigned int GetResourceLoadedCount() { return m_uiResourceLoadedCount; }
     unsigned int GetResourceFailedCount() { return m_uiResourceFailedCount; }
     void         OnPlayerJoin(CPlayer& Player);
+    void         OnPlayerQuit(CPlayer& Player);
 
     const char* GetResourceDirectory();
 

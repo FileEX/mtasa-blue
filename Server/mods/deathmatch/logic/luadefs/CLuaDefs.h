@@ -34,24 +34,7 @@
 #include "../CDatabaseManager.h"
 #include <lua/CLuaFunctionParser.h>
 
-// Used by script handlers to verify elements
-#define SCRIPT_VERIFY_BLIP(blip) (m_pBlipManager->Exists(blip)&&!blip->IsBeingDeleted())
-#define SCRIPT_VERIFY_ELEMENT(element) ((element)!=NULL&&m_pRootElement->IsMyChild((element),true)&&!element->IsBeingDeleted())
-#define SCRIPT_VERIFY_ENTITY(entity) ((entity)!=NULL&&m_pRootElement->IsMyChild((entity),true)&&entity->IsEntity()&&!entity->IsBeingDeleted())
-#define SCRIPT_VERIFY_MARKER(marker) (m_pMarkerManager->Exists(marker)&&!marker->IsBeingDeleted())
-#define SCRIPT_VERIFY_OBJECT(object) (m_pObjectManager->Exists(object)&&!object->IsBeingDeleted())
-#define SCRIPT_VERIFY_PICKUP(pickup) (m_pPickupManager->Exists(pickup)&&!pickup->IsBeingDeleted())
-#define SCRIPT_VERIFY_PLAYER(player) (m_pPlayerManager->Exists(player)&&!player->IsBeingDeleted())
-#define SCRIPT_VERIFY_FUNCTION(func) ((func)!=LUA_REFNIL)
-#define SCRIPT_VERIFY_RADAR_AREA(radararea) (m_pRadarAreaManager->Exists(radararea)&&!radararea->IsBeingDeleted())
-#define SCRIPT_VERIFY_VEHICLE(vehicle) (m_pVehicleManager->Exists(vehicle)&&!vehicle->IsBeingDeleted())
-#define SCRIPT_VERIFY_TIMER(timer) (luaMain->GetTimerManager ()->Exists(timer))
-#define SCRIPT_VERIFY_PATH(path) (m_pPathManager->Exists(path)&&!path->IsBeingDeleted())
-#define SCRIPT_VERIFY_TEAM(team) (m_pTeamManager->Exists(team))
-#define SCRIPT_VERIFY_ACCOUNT(account) (m_pAccountManager->Exists(account))
-#define SCRIPT_VERIFY_COLSHAPE(colshape) (m_pColManager->Exists(colshape))
-#define SCRIPT_VERIFY_RESOURCE(resource) (m_pResourceManager->Exists(resource))
-#define LUA_DECLARE(x) static int x ( lua_State * luaVM );
+#define LUA_DECLARE(x)     static int x(lua_State* luaVM);
 #define LUA_DECLARE_OOP(x) LUA_DECLARE(x) LUA_DECLARE(OOP_##x)
 
 class CLuaDefs
@@ -96,7 +79,7 @@ protected:
     template <auto ReturnOnError, auto T>
     static inline int ArgumentParserWarn(lua_State* L)
     {
-        return CLuaFunctionParser<false, ReturnOnError, T>()(L, m_pScriptDebugging);
+        return CLuaFunctionParser<false, ReturnOnError, remove_noexcept_fn_v<T>>()(L, m_pScriptDebugging);
     }
 
     // Special case for overloads
@@ -106,8 +89,8 @@ protected:
     {
         // Pad functions to have the same number of parameters by
         // filling both up to the larger number of parameters with dummy_type arguments
-        using PaddedFunctionA = pad_func_with_func<FunctionA, FunctionB>;
-        using PaddedFunctionB = pad_func_with_func<FunctionB, FunctionA>;
+        using PaddedFunctionA = pad_func_with_func<remove_noexcept_fn_v<FunctionA>, remove_noexcept_fn_v<FunctionB>>;
+        using PaddedFunctionB = pad_func_with_func<remove_noexcept_fn_v<FunctionB>, remove_noexcept_fn_v<FunctionA>>;
         // Combine functions
         using Overload = CLuaOverloadParser<PaddedFunctionA::Call, PaddedFunctionB::Call>;
 
@@ -118,7 +101,7 @@ protected:
     template <auto T>
     static inline int ArgumentParser(lua_State* L)
     {
-        return CLuaFunctionParser<true, nullptr, T>()(L, m_pScriptDebugging);
+        return CLuaFunctionParser<true, nullptr, remove_noexcept_fn_v<T>>()(L, m_pScriptDebugging);
     }
 
     // Special case for overloads
@@ -128,8 +111,8 @@ protected:
     {
         // Pad functions to have the same number of parameters by
         // filling both up to the larger number of parameters with dummy_type arguments
-        using PaddedFunctionA = pad_func_with_func<FunctionA, FunctionB>;
-        using PaddedFunctionB = pad_func_with_func<FunctionB, FunctionA>;
+        using PaddedFunctionA = pad_func_with_func<remove_noexcept_fn_v<FunctionA>, remove_noexcept_fn_v<FunctionB>>;
+        using PaddedFunctionB = pad_func_with_func<remove_noexcept_fn_v<FunctionB>, remove_noexcept_fn_v<FunctionA>>;
         // Combine functions
         using Overload = CLuaOverloadParser<PaddedFunctionA::Call, PaddedFunctionB::Call>;
 

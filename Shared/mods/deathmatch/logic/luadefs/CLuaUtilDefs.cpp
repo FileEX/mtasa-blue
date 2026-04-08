@@ -204,7 +204,7 @@ int CLuaUtilDefs::Split(lua_State* luaVM)
         wchar_t wUNICODE[2] = {static_cast<wchar_t>(uiDelimiter), '\0'};
         strDelimiter = UTF16ToMbUTF8(wUNICODE);
     }
-    else            // It's already a string
+    else  // It's already a string
         argStream.ReadString(strDelimiter);
 
     if (!argStream.HasErrors())
@@ -263,7 +263,7 @@ int CLuaUtilDefs::GetUserdataType(lua_State* luaVM)
         else if (iArgument == LUA_TUSERDATA)
             strType = GetUserDataClassName(*((void**)lua_touserdata(luaVM, 1)), luaVM, false);
 
-        strType = strType.empty() ? "userdata" : strType;
+        strType = strType.empty() ? SStringX("userdata") : strType;
 
         lua_pushstring(luaVM, strType.c_str());
         return 1;
@@ -664,7 +664,7 @@ int CLuaUtilDefs::GetTok(lua_State* luaVM)
         wchar_t wUNICODE[2] = {static_cast<wchar_t>(uiDelimiter), '\0'};
         strDelimiter = UTF16ToMbUTF8(wUNICODE);
     }
-    else            // It's already a string
+    else  // It's already a string
         argStream.ReadString(strDelimiter);
 
     if (!argStream.HasErrors())
@@ -728,7 +728,12 @@ int CLuaUtilDefs::tocolor(lua_State* luaVM)
     if (!argStream.HasErrors())
     {
         // Make it into an unsigned long
-        unsigned long ulColor = COLOR_RGBA(iRed, iGreen, iBlue, iAlpha);
+        const unsigned char ucRed = static_cast<unsigned char>(Clamp<int>(0, iRed, 255));
+        const unsigned char ucGreen = static_cast<unsigned char>(Clamp<int>(0, iGreen, 255));
+        const unsigned char ucBlue = static_cast<unsigned char>(Clamp<int>(0, iBlue, 255));
+        const unsigned char ucAlpha = static_cast<unsigned char>(Clamp<int>(0, iAlpha, 255));
+
+        unsigned long ulColor = COLOR_RGBA(ucRed, ucGreen, ucBlue, ucAlpha);
         lua_pushinteger(luaVM, static_cast<lua_Integer>(ulColor));
         return 1;
     }

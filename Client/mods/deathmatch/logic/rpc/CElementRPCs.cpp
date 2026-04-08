@@ -96,7 +96,7 @@ void CElementRPCs::SetElementData(CClientEntity* pSource, NetBitStreamInterface&
         CLuaArgument Argument;
         if (bitStream.ReadStringCharacters(strName, usNameLength) && Argument.ReadFromBitStream(bitStream))
         {
-            pSource->SetCustomData(strName, Argument);
+            pSource->SetCustomData(CStringName{strName}, Argument);
         }
     }
 }
@@ -105,7 +105,7 @@ void CElementRPCs::RemoveElementData(CClientEntity* pSource, NetBitStreamInterfa
 {
     // Read out the name length
     unsigned short usNameLength;
-    bool           bRecursive;            // Unused
+    bool           bRecursive;  // Unused
     if (bitStream.ReadCompressed(usNameLength))
     {
         SString strName;
@@ -114,7 +114,7 @@ void CElementRPCs::RemoveElementData(CClientEntity* pSource, NetBitStreamInterfa
         if (bitStream.ReadStringCharacters(strName, usNameLength) && bitStream.ReadBit(bRecursive))
         {
             // Remove that name
-            pSource->DeleteCustomData(strName);
+            pSource->DeleteCustomData(CStringName{strName});
         }
     }
 }
@@ -359,7 +359,7 @@ void CElementRPCs::DetachElements(CClientEntity* pSource, NetBitStreamInterface&
         return;
     }
 
-    ElementID usAttachedToID;
+    ElementID      usAttachedToID;
     CClientEntity* pAttachedToEntity = CElementIDs::GetElement(usAttachedToID);
 
     CVector vecPosition;
@@ -466,7 +466,15 @@ void CElementRPCs::SetElementHealth(CClientEntity* pSource, NetBitStreamInterfac
                 if (pPed->IsHealthLocked())
                     pPed->LockHealth(fHealth);
                 else
+                {
                     pPed->SetHealth(fHealth);
+                    // If server sets health to 0 for local player, mark as server-processed death
+                    // to prevent DoWastedCheck from firing with stale local damage data
+                    if (fHealth == 0.0f && pPed->IsLocalPlayer())
+                    {
+                        g_pClientGame->ClearDamageData();
+                    }
+                }
                 break;
             }
 

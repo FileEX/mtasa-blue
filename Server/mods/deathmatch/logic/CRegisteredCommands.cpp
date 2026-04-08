@@ -18,6 +18,9 @@
 #include "CClient.h"
 #include "CConsoleClient.h"
 #include "CPlayer.h"
+#include "CGame.h"
+#include "CScriptDebugging.h"
+#include "CMainConfig.h"
 
 CRegisteredCommands::CRegisteredCommands(CAccessControlListManager* pACLManager)
 {
@@ -34,6 +37,27 @@ bool CRegisteredCommands::AddCommand(CLuaMain* pLuaMain, const char* szKey, cons
 {
     assert(pLuaMain);
     assert(szKey);
+
+    if (CommandExists(szKey, nullptr))
+    {
+        auto policy = static_cast<MultiCommandHandlerPolicy>(g_pGame->GetConfig()->GetAllowMultiCommandHandlers());
+
+        switch (policy)
+        {
+            case MultiCommandHandlerPolicy::BLOCK:
+                g_pGame->GetScriptDebugging()->LogError(
+                    pLuaMain->GetVM(), "addCommandHandler: Duplicate command registration blocked for '%s' (multiple handlers disabled)", szKey);
+                return false;
+
+            case MultiCommandHandlerPolicy::WARN:
+                g_pGame->GetScriptDebugging()->LogWarning(pLuaMain->GetVM(), "Attempt to register duplicate command '%s'", szKey);
+                break;
+
+            case MultiCommandHandlerPolicy::ALLOW:
+            default:
+                break;
+        }
+    }
 
     // Check if we already have this key and handler
     SCommand* pCommand = GetCommand(szKey, pLuaMain);
@@ -139,7 +163,7 @@ bool CRegisteredCommands::CommandExists(const char* szKey, CLuaMain* pLuaMain)
 {
     assert(szKey);
 
-    return GetCommand(szKey, pLuaMain) != NULL;
+    return GetCommand(szKey, pLuaMain) != nullptr;
 }
 
 bool CRegisteredCommands::ProcessCommand(const char* szKey, const char* szArguments, CClient* pClient)
@@ -166,7 +190,7 @@ bool CRegisteredCommands::ProcessCommand(const char* szKey, const char* szArgume
             if (m_pACLManager->CanObjectUseRight(
                     pClient->GetAccount()->GetName().c_str(), CAccessControlListGroupObject::OBJECT_TYPE_USER, (*iter)->strKey,
                     CAccessControlListRight::RIGHT_TYPE_COMMAND,
-                    !(*iter)->bRestricted))            // If this command is restricted, the default access should be false unless granted specially
+                    !(*iter)->bRestricted))  // If this command is restricted, the default access should be false unless granted specially
             {
                 // Call it
                 CallCommandHandler((*iter)->pLuaMain, (*iter)->iLuaFunction, (*iter)->strKey, szArguments, pClient);
@@ -203,7 +227,7 @@ CRegisteredCommands::SCommand* CRegisteredCommands::GetCommand(const char* szKey
     }
 
     // Doesn't exist
-    return NULL;
+    return nullptr;
 }
 
 void CRegisteredCommands::CallCommandHandler(CLuaMain* pLuaMain, const CLuaFunctionRef& iLuaFunction, const char* szKey, const char* szArguments,
@@ -253,7 +277,7 @@ void CRegisteredCommands::CallCommandHandler(CLuaMain* pLuaMain, const CLuaFunct
         while (arg)
         {
             Arguments.PushString(arg);
-            arg = strtok(NULL, " ");
+            arg = strtok(nullptr, " ");
         }
 
         delete[] szTempArguments;

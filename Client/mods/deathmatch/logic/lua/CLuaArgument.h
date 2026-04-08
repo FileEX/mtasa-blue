@@ -12,16 +12,17 @@
 
 extern "C"
 {
-    #include "lua.h"
+#include "lua.h"
 }
 #include <net/bitstream.h>
 #include <string>
 #include "json.h"
+#include "CStringName.h"
 
 class CClientEntity;
 class CLuaArguments;
 
-#define LUA_TTABLEREF 9
+#define LUA_TTABLEREF    9
 #define LUA_TSTRING_LONG 10
 
 class CLuaArgument
@@ -42,6 +43,7 @@ public:
     void ReadNumber(double dNumber);
     void ReadString(const std::string& string);
     void ReadString(const std::string_view& string);
+    void ReadString(const CStringName& string);
     void ReadString(const char* string);
     void ReadElement(CClientEntity* pElement);
     void ReadScriptID(uint uiScriptID);

@@ -14,7 +14,7 @@
 #include "..\game_sa\gamesa_renderware.h"
 #include "..\game_sa\gamesa_renderware.hpp"
 
-#define CLOTHES_REF_TEST    1       // Debug clothes geometry refs
+#define CLOTHES_REF_TEST 1  // Debug clothes geometry refs
 
 ////////////////////////////////////////////////
 //
@@ -28,7 +28,7 @@ class CPedClothesDesc
 public:
     union
     {
-        DWORD things1[10];            // models
+        DWORD things1[10];  // models
         struct
         {
             DWORD torso;
@@ -45,7 +45,7 @@ public:
 
     union
     {
-        DWORD things2[18];            // +0x28 textures?
+        DWORD things2[18];  // +0x28 textures?
         struct
         {
             DWORD Torso;
@@ -69,8 +69,8 @@ public:
         };
     };
 
-    float fFatAmount;               // +0x70
-    float fMuscleAmount;            // +0x74
+    float fFatAmount;     // +0x70
+    float fMuscleAmount;  // +0x74
 
     bool operator==(const CPedClothesDesc& other) const
     {
@@ -119,6 +119,24 @@ public:
 
     ///////////////////////////////////////
     //
+    // Get geometry from clump's first atomic if structure is valid
+    //
+    ///////////////////////////////////////
+    RpGeometry* GetClumpGeometry(RpClump* pClump) const
+    {
+        if (!pClump || !pClump->atomics.root.next)
+            return nullptr;
+        if (pClump->atomics.root.next == &pClump->atomics.root)
+            return nullptr;
+
+        // Subtract 8 RwListEntry elements (64 bytes) to get from inClumpLink to RpAtomic base
+        RpAtomic* pAtomic = reinterpret_cast<RpAtomic*>(pClump->atomics.root.next - 0x8);
+
+        return pAtomic->geometry;
+    }
+
+    ///////////////////////////////////////
+    //
     // Constructor
     //
     ///////////////////////////////////////
@@ -133,15 +151,28 @@ public:
     //////////////////////////////////////////////////////////////
     //
     // Check if any clumps have become unused outside of the cache
+    // Also removes orphaned entries (null pClump)
     //
     //////////////////////////////////////////////////////////////
     uint GetNumCached()
     {
-        uint uiNumCached = 0;
-        for (std::vector<SSavedClumpInfo>::iterator iter = savedClumpList.begin(); iter != savedClumpList.end(); ++iter)
+        uint                     uiNumCached = 0;
+        std::vector<std::size_t> orphanedIndices;
+
+        for (std::size_t i = 0; i < savedClumpList.size(); ++i)
         {
-            SSavedClumpInfo& info = *iter;
-            RpGeometry*      pGeometry = ((RpAtomic*)((info.pClump->atomics.root.next) - 0x8))->geometry;
+            SSavedClumpInfo& info = savedClumpList[i];
+
+            if (!info.pClump)
+            {
+                orphanedIndices.push_back(i);
+                continue;
+            }
+
+            RpGeometry* pGeometry = GetClumpGeometry(info.pClump);
+            if (!pGeometry)
+                continue;  // Skip but don't remove - geometry may be temp unavailable
+
 #ifdef CLOTHES_REF_TEST
             if (pGeometry->refs < 21)
             {
@@ -162,6 +193,13 @@ public:
             }
             else
                 info.bUnused = false;
+        }
+
+        // Remove orphaned entries (null pClump) in reverse order
+        for (auto it = orphanedIndices.rbegin(); it != orphanedIndices.rend(); ++it)
+        {
+            savedClumpList.erase(savedClumpList.begin() + static_cast<std::ptrdiff_t>(*it));
+            m_Stats.uiNumRemoved++;
         }
 
         m_Stats.uiNumTotal = savedClumpList.size();
@@ -185,14 +223,17 @@ public:
                     RemoveOldestUnused();
 
         RpClump* pClumpCopy = RpClumpClone(pClump);
+        if (!pClumpCopy)
+            return;
+
+#ifdef CLOTHES_REF_TEST
+        RpGeometry* pGeometry = GetClumpGeometry(pClumpCopy);
+        if (pGeometry)
+            pGeometry->refs += 20;
+#endif
 
         SSavedClumpInfo info;
         info.pClump = pClumpCopy;
-#ifdef CLOTHES_REF_TEST
-        RpGeometry* pGeometry = ((RpAtomic*)((info.pClump->atomics.root.next) - 0x8))->geometry;
-        pGeometry->refs += 20;
-#endif
-
         info.clothedDesc = *pClothesDesc;
         info.bUnused = false;
         info.iCacheRevision = m_iCacheRevision;
@@ -226,42 +267,47 @@ public:
     ///////////////////////////////////////
     bool RemoveOldestUnused()
     {
-        uint                                   uiBestAge = -1;
-        std::vector<SSavedClumpInfo>::iterator uiBestIndex;
+        uint        uiBestAge = static_cast<uint>(-1);
+        std::size_t bestIndex = savedClumpList.size();
 
         CTickCount timeNow = CTickCount::Now();
-        for (std::vector<SSavedClumpInfo>::iterator iter = savedClumpList.begin(); iter != savedClumpList.end(); ++iter)
+        for (std::size_t i = 0; i < savedClumpList.size(); ++i)
         {
-            const SSavedClumpInfo& info = *iter;
+            const SSavedClumpInfo& info = savedClumpList[i];
             if (info.bUnused)
             {
                 uint uiAge = (timeNow - info.timeUnused).ToInt();
                 if (uiAge > m_uiMinCacheTime)
                 {
-                    if (uiAge > uiBestAge || uiBestAge == -1)
+                    const bool isFirstCandidate = (bestIndex == savedClumpList.size());
+                    if (isFirstCandidate || uiAge > uiBestAge)
                     {
                         uiBestAge = uiAge;
-                        uiBestIndex = iter;
+                        bestIndex = i;
                     }
                 }
             }
         }
 
-        if (uiBestAge == -1)
+        if (bestIndex == savedClumpList.size())
             return false;
 
-        const SSavedClumpInfo& info = *uiBestIndex;
+        const SSavedClumpInfo& info = savedClumpList[bestIndex];
+
+        if (!info.bUnused)
+            return false;
 
 #ifdef CLOTHES_REF_TEST
-        RpGeometry* pGeometry = ((RpAtomic*)((info.pClump->atomics.root.next) - 0x8))->geometry;
-        pGeometry->refs -= 20;
+        RpGeometry* pGeometry = GetClumpGeometry(info.pClump);
+        if (pGeometry && pGeometry->refs >= 20)
+            pGeometry->refs -= 20;
 #endif
-        RpClumpDestroy(info.pClump);
-        assert(info.bUnused);
+        if (info.pClump)
+            RpClumpDestroy(info.pClump);
         m_Stats.uiNumTotal--;
         m_Stats.uiNumUnused--;
         m_Stats.uiNumRemoved++;
-        savedClumpList.erase(uiBestIndex);
+        savedClumpList.erase(savedClumpList.begin() + static_cast<std::ptrdiff_t>(bestIndex));
         return true;
     }
 
@@ -273,14 +319,16 @@ public:
     ///////////////////////////////////////
     RpClump* FindMatchAndUse(CPedClothesDesc* pClothesDesc)
     {
-        for (std::vector<SSavedClumpInfo>::iterator iter = savedClumpList.begin(); iter != savedClumpList.end(); ++iter)
+        for (SSavedClumpInfo& info : savedClumpList)
         {
-            SSavedClumpInfo& info = *iter;
             if (info.iCacheRevision != m_iCacheRevision)
-                continue;            // Don't match if it was generated with different custom clothes textures
+                continue;  // Don't match if it was generated with different custom clothes textures
 
             if (info.clothedDesc == *pClothesDesc)
             {
+                if (!GetClumpGeometry(info.pClump))
+                    continue;  // Skip if geometry unavailable
+
                 if (info.bUnused)
                 {
                     info.bUnused = false;
@@ -295,6 +343,34 @@ public:
         m_Stats.uiCacheMiss++;
         return NULL;
     }
+
+    void ClearOldRevisions()
+    {
+        m_iCacheRevision++;
+
+        for (auto& info : savedClumpList)
+        {
+            if (info.iCacheRevision == m_iCacheRevision)
+                continue;
+
+#ifdef CLOTHES_REF_TEST
+            if (auto pGeometry = GetClumpGeometry(info.pClump))
+                if (pGeometry->refs >= 20)
+                    pGeometry->refs -= 20;
+#endif
+            if (info.pClump)
+                RpClumpDestroy(info.pClump);
+
+            m_Stats.uiNumTotal--;
+            if (info.bUnused)
+                m_Stats.uiNumUnused--;
+            m_Stats.uiNumRemoved++;
+        }
+
+        savedClumpList.erase(std::remove_if(savedClumpList.begin(), savedClumpList.end(),
+                                            [this](const SSavedClumpInfo& info) { return info.iCacheRevision != m_iCacheRevision; }),
+                             savedClumpList.end());
+    }
 };
 
 CClumpStore ms_clumpStore;
@@ -308,7 +384,7 @@ CClumpStore ms_clumpStore;
 ////////////////////////////////////////////////
 void CMultiplayerSA::FlushClothesCache()
 {
-    ms_clumpStore.m_iCacheRevision++;
+    ms_clumpStore.ClearOldRevisions();
 }
 
 ////////////////////////////////////////////////
@@ -340,12 +416,15 @@ void _cdecl OnCClothesBuilderCreateSkinnedClumpPost(RpClump* pRpClumpResult, RpC
 }
 
 // Hook info
-#define HOOKPOS_CClothesBuilderCreateSkinnedClump        0x5A69D0
-#define HOOKSIZE_CClothesBuilderCreateSkinnedClump       6
-DWORD RETURN_CClothesBuilderCreateSkinnedClump = 0x5A69D6;
-void _declspec(naked) HOOK_CClothesBuilderCreateSkinnedClump()
+#define HOOKPOS_CClothesBuilderCreateSkinnedClump  0x5A69D0
+#define HOOKSIZE_CClothesBuilderCreateSkinnedClump 6
+DWORD                         RETURN_CClothesBuilderCreateSkinnedClump = 0x5A69D6;
+static void __declspec(naked) HOOK_CClothesBuilderCreateSkinnedClump()
 {
-    _asm
+    MTA_VERIFY_HOOK_LOCAL_SIZE;
+
+    // clang-format off
+    __asm
     {
         pushad
         push    [esp+32+4*5]
@@ -388,6 +467,7 @@ inside:
         sub     esp, 0D4h
         jmp     RETURN_CClothesBuilderCreateSkinnedClump
     }
+    // clang-format on
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

@@ -15,7 +15,7 @@
 
 extern "C"
 {
-    #include "lua.h"
+#include "lua.h"
 }
 #include "../common/CBitStream.h"
 #include "json.h"
@@ -23,7 +23,7 @@ extern "C"
 class CElement;
 class CLuaArguments;
 
-#define LUA_TTABLEREF 9
+#define LUA_TTABLEREF    9
 #define LUA_TSTRING_LONG 10
 
 class CLuaArgument
@@ -45,6 +45,7 @@ public:
     void ReadNumber(double dNumber);
     void ReadString(const std::string& string);
     void ReadString(const std::string_view& string);
+    void ReadString(const CStringName& string);
     void ReadString(const char* string);
     void ReadElement(CElement* pElement);
     void ReadElementID(ElementID ID);

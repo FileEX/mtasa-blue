@@ -130,7 +130,7 @@ public:
         SCRIPTFILE,
         WATER,
         WEAPON,
-        _DATABASE_CONNECTION, // server only
+        _DATABASE_CONNECTION,  // server only
         TRAIN_TRACK,
         ROOT,
         UNKNOWN,
@@ -193,6 +193,7 @@ public:
         QUIT_CONNECTION_DESYNC,
         QUIT_TIMEOUT,
     };
+
     enum
     {
         GLITCH_QUICKRELOAD,
@@ -405,6 +406,46 @@ public:
     void SendPedWastedPacket(CClientPed* Ped, ElementID damagerID = INVALID_ELEMENT_ID, unsigned char ucWeapon = 0xFF, unsigned char ucBodyPiece = 0xFF,
                              AssocGroupId animGroup = 0, AnimationId animID = 15);
 
+    void ClearDamageData() noexcept
+    {
+        m_DamagerID = INVALID_ELEMENT_ID;
+        m_ucDamageWeapon = WEAPONTYPE_INVALID;
+        m_ucDamageBodyPiece = BODYPART_INVALID;
+        m_ulDamageTime = 0;
+        m_serverProcessedDeath = true;
+    }
+
+    void ResetDeathProcessingFlag() noexcept { m_serverProcessedDeath = false; }
+
+    void SetScriptedDeathData()
+    {
+        auto* localPlayer = GetLocalPlayer();
+        if (!localPlayer)
+        {
+            m_DamagerID = INVALID_ELEMENT_ID;
+            m_ucDamageWeapon = WEAPONTYPE_INVALID;
+            m_ucDamageBodyPiece = BODYPART_INVALID;
+            m_ulDamageTime = CClientTime::GetTime();
+            m_serverProcessedDeath = false;
+            return;
+        }
+
+        m_DamagerID = INVALID_ELEMENT_ID;
+        m_ucDamageWeapon = TryGetCurrentWeapon(localPlayer);
+        m_ucDamageBodyPiece = BODYPART_TORSO;
+        m_ulDamageTime = CClientTime::GetTime();
+        m_serverProcessedDeath = false;
+    }
+
+    void SetExplosionDamageData() noexcept
+    {
+        m_DamagerID = INVALID_ELEMENT_ID;
+        m_ucDamageWeapon = WEAPONTYPE_EXPLOSION;
+        m_ucDamageBodyPiece = BODYPART_TORSO;
+        m_ulDamageTime = CClientTime::GetTime();
+        m_serverProcessedDeath = false;
+    }
+
     CClientGUIElement* GetClickedGUIElement() { return m_pClickedGUIElement; }
     void               SetClickedGUIElement(CClientGUIElement* pElement) { m_pClickedGUIElement = NULL; }
 
@@ -465,11 +506,15 @@ public:
     bool    IsHighFloatPrecision() const;
 
     bool TriggerBrowserRequestResultEvent(const std::unordered_set<SString>& newPages);
-    void RestreamModel(unsigned short usModel);
+    bool RestreamModel(std::uint16_t model);
     void RestreamWorld();
+    void Restream(std::optional<RestreamOption> option);
     void ReinitMarkers();
 
     void OnWindowFocusChange(bool state);
+
+    void                      SetAllowMultiCommandHandlers(MultiCommandHandlerPolicy policy) noexcept { m_allowMultiCommandHandlers = policy; }
+    MultiCommandHandlerPolicy GetAllowMultiCommandHandlers() const noexcept { return m_allowMultiCommandHandlers; }
 
 private:
     // CGUI Callbacks
@@ -486,6 +531,7 @@ private:
     bool OnSize(CGUIElement* pElement);
     bool OnFocusGain(CGUIFocusEventArgs Args);
     bool OnFocusLoss(CGUIFocusEventArgs Args);
+    void TriggerGUIClickEvent(CGUIMouseEventArgs Args, const char* szState, const char* minClientVersion);
 
     // Network update functions
     void DoVehicleInKeyCheck();
@@ -593,7 +639,8 @@ private:
                                                RpClump* pClump);
     bool        ProcessCollisionHandler(CEntitySAInterface* pThisInterface, CEntitySAInterface* pOtherInterface);
     bool        VehicleCollisionHandler(CVehicleSAInterface*& pCollidingVehicle, CEntitySAInterface* pCollidedVehicle, int iModelIndex, float fDamageImpulseMag,
-                                        float fCollidingDamageImpulseMag, uint16 usPieceType, CVector vecCollisionPos, CVector vecCollisionVelocity, bool isProjectile);
+                                        float fCollidingDamageImpulseMag, uint16 usPieceType, CVector vecCollisionPos, CVector vecCollisionVelocity,
+                                        bool isProjectile);
     bool        VehicleDamageHandler(CEntitySAInterface* pVehicleInterface, float fLoss, CEntitySAInterface* pAttackerInterface, eWeaponType weaponType,
                                      const CVector& vecDamagePos, uchar ucTyre);
     bool        HeliKillHandler(CVehicleSAInterface* pHeli, CEntitySAInterface* pHitInterface);
@@ -612,6 +659,9 @@ private:
     AnimationId DrivebyAnimationHandler(AnimationId animGroup, AssocGroupId animId);
     void        AudioZoneRadioSwitchHandler(DWORD dwStationID);
 
+    // Helper method to get current weapon type with error handling
+    std::uint8_t TryGetCurrentWeapon(CClientPlayer* player);
+
     static bool StaticProcessMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     bool        ProcessMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -629,7 +679,8 @@ public:
     bool VerifySADataFiles(int iEnableClientChecks = 0);
     void DebugElementRender();
 
-    void SendExplosionSync(const CVector& vecPosition, eExplosionType Type, CClientEntity* pOrigin = nullptr, std::optional<VehicleBlowState> vehicleBlowState = std::nullopt);
+    void SendExplosionSync(const CVector& vecPosition, eExplosionType Type, CClientEntity* pOrigin = nullptr,
+                           std::optional<VehicleBlowState> vehicleBlowState = std::nullopt);
     void SendFireSync(CFire* pFire);
     void SendProjectileSync(CClientProjectile* pProjectile);
 
@@ -766,6 +817,7 @@ private:
     unsigned char  m_ucDamageBodyPiece;
     unsigned long  m_ulDamageTime;
     bool           m_bDamageSent;
+    bool           m_serverProcessedDeath{false};  // Flag to track server-processed deaths
 
     eWeaponSlot                            m_lastWeaponSlot;
     SFixedArray<DWORD, WEAPONSLOT_MAX + 1> m_wasWeaponAmmoInClip;
@@ -806,7 +858,7 @@ private:
     long long m_llLastTransgressionTime;
     SString   m_strLastDiagnosticStatus;
 
-    bool m_bBeingDeleted;            // To enable speedy disconnect
+    bool m_bBeingDeleted;  // To enable speedy disconnect
 
     bool m_bWasMinimized;
     bool m_bFocused;
@@ -872,7 +924,9 @@ private:
     AnimAssociations_type                                m_mapOfCustomAnimationAssociations;
     // Key is the task and value is the CClientPed*
     RunNamedAnimTask_type m_mapOfRunNamedAnimTasks;
-    
+
+    MultiCommandHandlerPolicy m_allowMultiCommandHandlers;
+
     long long m_timeLastDiscordStateUpdate;
 };
 

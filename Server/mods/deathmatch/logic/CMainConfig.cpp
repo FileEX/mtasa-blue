@@ -2,6 +2,7 @@
  *
  *  PROJECT:     Multi Theft Auto v1.0
  *  LICENSE:     See LICENSE in the top level directory
+ *
  *  FILE:        mods/deathmatch/logic/CMainConfig.cpp
  *  PURPOSE:     XML-based main configuration file parser class
  *
@@ -21,8 +22,9 @@
 #include "CConsoleCommands.h"
 #include "CHTTPD.h"
 #include "CStaticFunctionDefinitions.h"
+#include "CLanBroadcast.h"
 
-#define MTA_SERVER_CONF_TEMPLATE "mtaserver.conf.template"
+#define SETTINGS_TEMPLATE_PATH "mtaserver.conf.template"
 
 extern CGame* g_pGame;
 
@@ -67,7 +69,7 @@ CMainConfig::CMainConfig(CConsole* pConsole) : CXMLConfig(NULL)
     m_bScriptDebugLogEnabled = false;
     m_uiScriptDebugLogLevel = 0;
     m_bDontBroadcastLan = false;
-    m_usFPSLimit = 36;
+    m_fpsLimit = 36;
     m_uiVoiceSampleRate = 1;
     m_ucVoiceQuality = 4;
     m_bVoiceEnabled = false;
@@ -81,6 +83,7 @@ CMainConfig::CMainConfig(CConsole* pConsole) : CXMLConfig(NULL)
     m_bSyncMapElementData = true;
     m_elementDataWhitelisted = false;
     m_checkDuplicateSerials = true;
+    m_allowMultiCommandHandlers = 1;
 }
 
 bool CMainConfig::Load()
@@ -136,12 +139,12 @@ bool CMainConfig::Load()
     }
 
     // Grab rules
-    CXMLNode* currentNode = nullptr;
+    CXMLNode*   currentNode = nullptr;
     std::size_t currentIndex = 0;
     while (currentNode = m_pRootNode->FindSubNode("rule", currentIndex++))
     {
         CXMLAttribute* attribute = currentNode->GetAttributes().Find("name");
-        SString ruleName = attribute ? attribute->GetValue() : SString{};
+        SString        ruleName = attribute ? attribute->GetValue() : SString{};
 
         attribute = currentNode->GetAttributes().Find("value");
         SString ruleValue = attribute ? attribute->GetValue() : SString{};
@@ -149,7 +152,7 @@ bool CMainConfig::Load()
         if (!ruleName.empty() && !ruleValue.empty())
             m_RulesForASEMap[std::move(ruleName)] = std::move(ruleValue);
     }
-  
+
     // Strip spaces from beginning and end of server name
     m_strServerName = SString(m_strServerName).TrimStart(" ").TrimEnd(" ");
 
@@ -258,13 +261,13 @@ bool CMainConfig::Load()
     {
         // Grab its "name" attribute
         CXMLAttribute* attribute = currentNode->GetAttributes().Find("name");
-        SString name = attribute ? attribute->GetValue() : SString{};
+        SString        name = attribute ? attribute->GetValue() : SString{};
         name = name.Replace("\\", "/").ToLower();
 
         // Grab its "verify" attribute
         attribute = currentNode->GetAttributes().Find("verify");
         SString verify = attribute ? attribute->GetValue() : SString{};
-        bool shouldVerify = verify == "true" || verify == "yes" || verify == "1";
+        bool    shouldVerify = verify == "true" || verify == "yes" || verify == "1";
 
         // Find bitnumber
         bool found = false;
@@ -362,15 +365,11 @@ bool CMainConfig::Load()
     iResult = GetString(m_pRootNode, "password", m_strPassword, 1, 32);
 
     // Grab the server fps limit
-    int iFPSTemp = 0;
-    iResult = GetInteger(m_pRootNode, "fpslimit", iFPSTemp, 0, std::numeric_limits<short>::max());
+    int readFps = 0;
+    iResult = GetInteger(m_pRootNode, "fpslimit", readFps, FPSLimits::FPS_UNLIMITED, FPSLimits::FPS_MAX);
     if (iResult == IS_SUCCESS)
     {
-        if (iFPSTemp == 0 || iFPSTemp >= 25)
-        {
-            m_usFPSLimit = (unsigned short)iFPSTemp;
-            SetInteger(m_pRootNode, "fpslimit", (int)m_usFPSLimit);
-        }
+        FPSLimits::IsValidAndSetValid(static_cast<std::uint16_t>(readFps), m_fpsLimit);
     }
 
     // Grab whether or not voice is enabled
@@ -539,6 +538,8 @@ bool CMainConfig::Load()
 
     GetBoolean(m_pRootNode, "elementdata_whitelisted", m_elementDataWhitelisted);
     GetBoolean(m_pRootNode, "check_duplicate_serials", m_checkDuplicateSerials);
+    GetInteger(m_pRootNode, "allow_multi_command_handlers", m_allowMultiCommandHandlers);
+    m_allowMultiCommandHandlers = Clamp(0, m_allowMultiCommandHandlers, 2);
 
     ApplyNetOptions();
 
@@ -771,7 +772,8 @@ bool CMainConfig::LoadExtended()
     RegisterCommand("start", CConsoleCommands::StartResource, false, "Usage: start <resource1> <resource2> ...\nStart a loaded resource eg: start admin");
     RegisterCommand("stop", CConsoleCommands::StopResource, false, "Usage: stop <resource1> <resource2> ...\nStop a resource eg: stop admin");
     RegisterCommand("stopall", CConsoleCommands::StopAllResources, false, "Stop all running resources");
-    RegisterCommand("restart", CConsoleCommands::RestartResource, false, "Usage: restart <resource1> <resource2> ...\nRestarts a running resource eg: restart admin");
+    RegisterCommand("restart", CConsoleCommands::RestartResource, false,
+                    "Usage: restart <resource1> <resource2> ...\nRestarts a running resource eg: restart admin");
     RegisterCommand("refresh", CConsoleCommands::RefreshResources, false, "Refresh resource list to find new resources");
     RegisterCommand("refreshall", CConsoleCommands::RefreshAllResources, false, "Refresh resources and restart any changed resources");
     RegisterCommand("list", CConsoleCommands::ListResources, false, "Shows a list of resources");
@@ -864,26 +866,36 @@ bool CMainConfig::AddMissingSettings()
     if (!g_pGame->IsUsingMtaServerConf())
         return false;
 
-    const SString templateFileName = PathJoin(g_pServerInterface->GetServerModPath(), "mtaserver.conf.template");
-
+    const std::string templateFileName = PathJoin(g_pServerInterface->GetServerModPath(), SETTINGS_TEMPLATE_PATH);
     if (!FileExists(templateFileName))
         return false;
 
-    CXMLFile* templateFile = g_pServerInterface->GetXML()->CreateXML(templateFileName);
-    CXMLNode* templateRootNode = templateFile && templateFile->Parse() ? templateFile->GetRootNode() : nullptr;
+    std::unique_ptr<CXMLFile> templateFile(g_pServerInterface->GetXML()->CreateXML(templateFileName.c_str()));
+    if (!templateFile || !templateFile->Parse())
+    {
+        CLogger::ErrorPrintf("Failed to parse template file: '%s'\n", templateFileName.c_str());
+        return false;
+    }
+
+    CXMLNode* templateRootNode = templateFile->GetRootNode();
     if (!templateRootNode)
     {
-        CLogger::ErrorPrintf("Can't parse '%s'\n", *templateFileName);
+        CLogger::ErrorPrintf("Template file '%s' has no root node\n", templateFileName.c_str());
         return false;
     }
 
     // Check that each item in the template also exists in the server config
-    bool      hasConfigChanged = false;
+    bool      configChanged = false;
     CXMLNode* previousNode = nullptr;
+
     for (auto it = templateRootNode->ChildrenBegin(); it != templateRootNode->ChildrenEnd(); ++it)
     {
-        CXMLNode* templateNode = *it;
-        SString   templateNodeTagName = templateNode->GetTagName();
+        CXMLNode*          templateNode = *it;
+        const std::string& templateNodeName = templateNode->GetTagName();
+
+        // Skip certain optional nodes
+        if (templateNodeName == "resource" || templateNodeName == "module")
+            continue;
 
         // Find node with exact same attributes
         CXMLAttributes& templateAttributes = templateNode->GetAttributes();
@@ -891,21 +903,25 @@ bool CMainConfig::AddMissingSettings()
         for (auto it2 = m_pRootNode->ChildrenBegin(); it2 != m_pRootNode->ChildrenEnd(); ++it2)
         {
             CXMLNode* tempNode = *it2;
-            if (tempNode->GetTagName() != templateNodeTagName)
-            {
+            if (tempNode->GetTagName() != templateNodeName)
                 continue;
-            }
+
             CXMLAttributes& attributes = tempNode->GetAttributes();
             bool            attributesMatch = true;
 
             for (auto it3 = templateAttributes.ListBegin(); it3 != templateAttributes.ListEnd(); ++it3)
             {
                 CXMLAttribute* templateAttribute = *it3;
-                const SString& strKey = templateAttribute->GetName();
-                const SString& strValue = templateAttribute->GetValue();
+                const SString& attrName = templateAttribute->GetName();
 
-                CXMLAttribute* foundAttribute = attributes.Find(strKey);
-                if (!foundAttribute || foundAttribute->GetValue() != strValue)
+                // Don't check value attribute which is intended to be customized by the server
+                if (attrName == "value")
+                    continue;
+
+                const SString& attrValue = templateAttribute->GetValue();
+
+                CXMLAttribute* foundAttribute = attributes.Find(attrName);
+                if (!foundAttribute || foundAttribute->GetValue() != attrValue)
                 {
                     attributesMatch = false;
                     break;
@@ -918,37 +934,28 @@ bool CMainConfig::AddMissingSettings()
                 break;
             }
         }
-        // Create missing node if not found
+
         if (!foundNode)
         {
-            CLogger::LogPrintf("Adding missing '%s' to mtaserver.conf\n", *templateNodeTagName);
-            SString value = templateNode->GetTagContent();
-            SString commentText = templateNode->GetCommentText();
-            foundNode = m_pRootNode->CreateSubNode(templateNodeTagName, previousNode);
-            foundNode->SetTagContent(value);
-            foundNode->SetCommentText(commentText, true);
+            const std::string templateNodeValue = templateNode->GetTagContent();
+            const SString     templateNodeComment = templateNode->GetCommentText();
 
-            // Copy attributes from template node
-            CXMLAttributes& templateAttributes = templateNode->GetAttributes();
-            for (auto it = templateAttributes.ListBegin(); it != templateAttributes.ListEnd(); ++it)
+            foundNode = m_pRootNode->CreateSubNode(templateNodeName.c_str(), previousNode);
+            foundNode->SetTagContent(templateNodeValue.c_str());
+            foundNode->SetCommentText(templateNodeComment.c_str(), true);
+
+            for (auto it3 = templateAttributes.ListBegin(); it3 != templateAttributes.ListEnd(); ++it3)
             {
-                CXMLAttribute* templateAttribute = *it;
-                const SString& attributeName = templateAttribute->GetName();
-                const SString& attributeValue = templateAttribute->GetValue();
-
-                CXMLAttribute* newAttribute = foundNode->GetAttributes().Create(attributeName);
-                if (newAttribute)
-                    newAttribute->SetValue(attributeValue);
+                CXMLAttribute* templateAttribute = *it3;
+                foundNode->GetAttributes().Create(*templateAttribute);
             }
-            hasConfigChanged = true;
+
+            CLogger::LogPrintf("Added missing '%s' setting to mtaserver.conf\n", templateNodeName.c_str());
+            configChanged = true;
         }
         previousNode = foundNode;
     }
-
-    // Clean up
-    g_pServerInterface->GetXML()->DeleteXML(templateFile);
-    FileDelete(templateFileName);
-    return hasConfigChanged;
+    return configChanged;
 }
 
 bool CMainConfig::IsValidPassword(const char* szPassword)
@@ -990,19 +997,18 @@ bool CMainConfig::SetPassword(const char* szPassword, bool bSave)
     return true;
 }
 
-bool CMainConfig::SetFPSLimit(unsigned short usFPS, bool bSave)
+bool CMainConfig::SetFPSLimit(std::uint16_t newFps, bool save)
 {
-    if (usFPS == 0 || (usFPS >= 25 && usFPS <= std::numeric_limits<short>::max()))
+    if (!FPSLimits::IsValidAndSetValid(newFps, m_fpsLimit))
     {
-        m_usFPSLimit = usFPS;
-        if (bSave)
-        {
-            SetInteger(m_pRootNode, "fpslimit", usFPS);
-            Save();
-        }
-        return true;
+        return false;
     }
-    return false;
+    if (save)
+    {
+        SetInteger(m_pRootNode, "fpslimit", m_fpsLimit);
+        Save();
+    }
+    return true;
 }
 
 void CMainConfig::RegisterCommand(const char* szName, FCommandHandler* pFunction, bool bRestricted, const char* szConsoleHelpText)
@@ -1332,7 +1338,7 @@ bool CMainConfig::SetSetting(const SString& strName, const SString& strValue, bo
     }
     else if (strName == "fpslimit")
     {
-        return CStaticFunctionDefinitions::SetFPSLimit(atoi(strValue), bSave);
+        return CStaticFunctionDefinitions::SetFPSLimit(static_cast<unsigned short>(atoi(strValue)), bSave);
     }
     else if (strName == "networkencryption")
     {
@@ -1529,8 +1535,10 @@ const std::vector<SIntSetting>& CMainConfig::GetIntSettingList()
         {false, false, 0, 1, 1, "database_credentials_protection", &m_bDatabaseCredentialsProtectionEnabled, NULL},
         {false, false, 0, 0, 1, "fakelag", &m_bFakeLagCommandEnabled, NULL},
         {true, true, 50, 1000, 5000, "player_triggered_event_interval", &m_iPlayerTriggeredEventIntervalMs, &CMainConfig::OnPlayerTriggeredEventIntervalChange},
-        {true, true, 1, 100, 1000, "max_player_triggered_events_per_interval", &m_iMaxPlayerTriggeredEventsPerInterval, &CMainConfig::OnPlayerTriggeredEventIntervalChange},
+        {true, true, 1, 100, 1000, "max_player_triggered_events_per_interval", &m_iMaxPlayerTriggeredEventsPerInterval,
+         &CMainConfig::OnPlayerTriggeredEventIntervalChange},
         {true, true, 0, 1, 1, "resource_client_file_checks", &m_checkResourceClientFiles, nullptr},
+        {true, true, 0, 1, 2, "allow_multi_command_handlers", &m_allowMultiCommandHandlers, &CMainConfig::OnAllowMultiCommandHandlersChange},
     };
 
     static std::vector<SIntSetting> settingsList;
@@ -1578,6 +1586,11 @@ void CGame::ApplyAseSetting()
 void CMainConfig::OnPlayerTriggeredEventIntervalChange()
 {
     g_pGame->ApplyPlayerTriggeredEventIntervalChange();
+}
+
+void CMainConfig::OnAllowMultiCommandHandlersChange()
+{
+    g_pGame->SendSyncSettings();
 }
 
 void CGame::ApplyPlayerTriggeredEventIntervalChange()

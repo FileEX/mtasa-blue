@@ -3,10 +3,10 @@ project "Client Core"
 	kind "SharedLib"
 	targetname "core"
 	targetdir(buildpath("mta"))
+	clangtidy "On"
 
 	filter "system:windows"
 		includedirs { "../../vendor/sparsehash/src/windows" }
-		linkoptions { "/SAFESEH:NO" }
 		buildoptions { "-Zm130" }
 
 	filter {}
@@ -14,6 +14,7 @@ project "Client Core"
 			"../../Shared/sdk",
 			".",
 			"../sdk",
+			"../../vendor/cegui-0.4.0-custom/include",
 			"../../vendor/tinygettext",
 			"../../vendor/zlib",
 			"../../vendor/jpeg-9f",
@@ -25,6 +26,11 @@ project "Client Core"
 
 	pchheader "StdInc.h"
 	pchsource "StdInc.cpp"
+
+	filter { "files:FastFailCrashHandler/WerCrashHandler.cpp" }
+		flags { "NoPCH" }
+
+	filter {}
 
 	vpaths {
 		["Headers/*"] = {"**.h", "**.hpp"},
@@ -48,11 +54,12 @@ project "Client Core"
 		"ws2_32", "d3dx9", "Userenv", "DbgHelp", "xinput", "Imagehlp", "dxguid", "dinput8",
 		"strmiids",	"odbc32", "odbccp32", "shlwapi", "winmm", "gdi32", "Imm32", "Psapi", "dwmapi",
 		"pthread", "libpng", "jpeg", "zlib", "tinygettext", "discord-rpc", "wintrust", "crypt32",
+		"bcrypt",
 	}
 
 	defines {
 		"INITGUID",
-		"PNG_SETJMP_NOT_SUPPORTED"
+		"PNG_SETJMP_NOT_SUPPORTED",
 	}
 
 	prebuildcommands {
