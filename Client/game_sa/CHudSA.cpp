@@ -986,6 +986,19 @@ void __fastcall CHudSA::RenderCircleCrosshair(void* sprite, void*, CRect* rect, 
     properties.placement.width = w;
     properties.placement.height = h;
 
+    if (gunRadius == 0.2)
+    {
+        CRect dotRect{};
+
+        dotRect.left = (useCustomPosition ? x : screenChairX) - 1.0f;
+        dotRect.top = (useCustomPosition ? y : screenChairY) - 1.0f;
+        dotRect.right = (useCustomPosition ? x : screenChairX) + 1.0f;
+        dotRect.bottom = (useCustomPosition ? y : screenChairY) + 1.0f;
+
+        // Call CSprite2d::DrawRect
+        ((void(__cdecl*)(CRect*, RwColor*))0x727B60)(&dotRect, color);
+    }
+
     rect->left = x - w;
     properties.placement.x = rect->left;
 
@@ -1147,6 +1160,9 @@ void CHudSA::StaticSetHooks()
     MemCpy((void*)0x58E3FA, "\x83\xC4\x08\x90\x90", 5);
     MemCpy((void*)0x58E44F, "\x83\xC4\x08\x90\x90", 5);
     MemCpy((void*)0x58E49C, "\x83\xC4\x08\x90\x90", 5);
+
+    // Disable rendering white square in the center of the crosshair
+    MemSet((void*)0x58E2DD, 0x90, 5);
 
     // Disable rocket/sniper/camera crosshair rendering by GTA
     MemSet((void*)0x58E9CA, 0x90, 5);
