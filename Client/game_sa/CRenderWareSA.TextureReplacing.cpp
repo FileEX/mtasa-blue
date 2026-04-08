@@ -5299,6 +5299,10 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
                     ClearPendingIsolatedModel(usModelId);
                     CTxdStore_RemoveRef(usStaleParentTxdId);
                     g_IsolatedTxdByModel.erase(itIsolated);
+                    // Queue for deferred cleanup when no other model claims the slot,
+                    // so TryCleanupOrphanedIsolatedSlots can release the MTA ownership pin.
+                    if (itOwner == g_IsolatedModelByTxd.end())
+                        g_OrphanedIsolatedTxdSlots.insert(usStaleIsolatedTxdId);
                     QueuePendingReplacement(usModelId, pReplacementTextures, uiParentModelId, usParentTxdId);
                     return false;
                 }
@@ -5372,10 +5376,8 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
         }
         else if (!g_bInTxdReapply)
         {
-            // Vanilla models sharing a TXD can corrupt each other when multiple
-            // CClientTXDs are imported to different models on the same TXD slot.
-            // Isolate this model if the shared TXD already has replacement textures
-            // belonging to a different model.
+            // Vanilla models get their own isolated TXD so replacement textures
+            // stay out of the shared parent slot.
             const unsigned short usCurrentTxdId = pModelInfo->GetTextureDictionaryID();
 
             // Check for an existing isolation entry for this model.
@@ -5414,7 +5416,7 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
                 {
                     // Stale entry: slot was recycled or ownership changed.
                     // Clean up tracking, restore model to parent TXD so the
-                    // pending retry's conflict detection runs on the shared slot.
+                    // pending retry re-runs isolation on the shared slot.
                     const unsigned short usParentTxdId = itPrevIsolated->second.usParentTxdId;
 
                     if (itOwner != g_IsolatedModelByTxd.end() && itOwner->second == usModelId)
@@ -5450,13 +5452,10 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
             else if (itPrevIsolated != g_IsolatedTxdByModel.end() && itPrevIsolated->second.usParentTxdId == usCurrentTxdId)
             {
                 // Model was restored to its parent TXD but the isolation entry persists.
-                // During fast resource restarts, the other model's replacement may not
-                // have been re-added yet, so conflict detection alone would miss it.
-                // The existing isolation entry proves a conflict was detected before.
+                // Re-isolate so replacement textures stay out of the shared slot.
                 if (!AllocateIsolatedTxdForVanillaModel(usModelId, usCurrentTxdId))
                 {
-                    // Prior isolation proves the TXD is shared. Defer rather
-                    // than going through to shared injection.
+                    // Allocation failed. Defer until a slot frees up.
                     AddReportLog(9401, SString("AllocateIsolatedTxdForVanillaModel failed for model %u (re-isolation), deferring", usModelId));
                     QueuePendingReplacement(usModelId, pReplacementTextures, 0, 0);
                     return false;
@@ -5599,6 +5598,8 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
             }
             else
             {
+                // Isolation entry was lost (cleanup ran between import and
+                // reapply). Defer so re-isolation can run on the next try.
                 QueuePendingReplacement(usModelId, pReplacementTextures, 0, 0);
                 return false;
             }
@@ -6279,6 +6280,34 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
     {
         if (auto* pModelInfoForSwap = static_cast<CModelInfoSA*>(pGame->GetModelInfo(usModelId)))
             ReplaceTextureInModel(pModelInfoForSwap, parentSwapMap);
+    }
+
+    // When textures go into a shared TXD (model not isolated), all other
+    // models on the same slot see them through SA's texture walk. Track
+    // those models so the remove and reapply paths cover the full set.
+    if (g_IsolatedTxdByModel.count(usModelId) == 0)
+    {
+        const auto& sharedModels = GetModelsForTxd(pInfo->usTxdId);
+        for (unsigned short usSharedModelId : sharedModels)
+        {
+            if (usSharedModelId == usModelId)
+                continue;
+            if (pReplacementTextures->usedInModelIds.count(usSharedModelId))
+                continue;
+            if (g_IsolatedTxdByModel.count(usSharedModelId))
+                continue;
+
+            pReplacementTextures->usedInModelIds.insert(usSharedModelId);
+
+            if (!parentSwapMap.empty())
+            {
+                if (auto* pSharedMI = static_cast<CModelInfoSA*>(pGame->GetModelInfo(usSharedModelId)))
+                {
+                    if (pSharedMI->GetRwObject())
+                        ReplaceTextureInModel(pSharedMI, parentSwapMap);
+                }
+            }
+        }
     }
 
     if (g_IsolatedTxdByModel.count(usModelId) > 0)
@@ -8418,6 +8447,26 @@ void CRenderWareSA::StaticResetModelTextureReplacing()
     g_GlobalMtaRasterCache.clear();
     InvalidateGlobalMtaRasterCache();
 
+    // Release parent TXD refs held for script TXDs before clearing the set.
+    // CleanupReplacementsInTxdSlot handles this during normal Lua cleanup, but
+    // script TXD entries that survive to session reset must be released here or
+    // the parent ref stays live across sessions.
+    if (!g_ScriptTxdSlotsWithParentPin.empty() && pGame)
+    {
+        auto* pTxdPoolSA = static_cast<CTxdPoolSA*>(&pGame->GetPools()->GetTxdPool());
+        if (pTxdPoolSA)
+        {
+            for (unsigned short usTxdSlotId : g_ScriptTxdSlotsWithParentPin)
+            {
+                auto* pSlot = pTxdPoolSA->GetTextureDictonarySlot(usTxdSlotId);
+                if (pSlot && pSlot->usParentIndex != static_cast<unsigned short>(-1))
+                {
+                    if (CTxdStore_GetTxd(pSlot->usParentIndex) != nullptr)
+                        CTxdStore_RemoveRef(pSlot->usParentIndex);
+                }
+            }
+        }
+    }
     g_ScriptTxdSlotsWithParentPin.clear();
 
     g_TxdToModelMap.clear();
