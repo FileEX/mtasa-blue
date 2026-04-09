@@ -601,7 +601,7 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
 
     bool doWooble = false;
 
-    auto ComputeVolumeAndFreq = [](CPedSAInterface* ped, float& volumeOffset, float& relativeFreq, bool forAnim = false)
+    auto ComputeVolumeAndFreq = [](CPedSAInterface* ped, float& volumeOffset, float& relativeFreq, bool forAnim = false, float customFreq = 1.0f)
     {
         volumeOffset = 0.0f;
         relativeFreq = 1.0f;
@@ -623,10 +623,15 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
                     relativeFreq = 1.2f;
                     break;
                 default:
-                    // A custom option so that footstep sounds for animations aren't quieter than normal steps
-                    volumeOffset = forAnim ? -6.0f : -12.0f;
-                    relativeFreq = forAnim ? 1.0f : 0.9f;
+                    volumeOffset = -12.0f;
+                    relativeFreq = 0.9f;
                     break;
+            }
+
+            if (forAnim)
+            {
+                volumeOffset = 0.0f;
+                relativeFreq = customFreq;
             }
 
             if (ped->iMoveAnimGroup == 69) // ANIM_PLAYER_SNEAK_PED
@@ -637,12 +642,12 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
         }
     };
 
-    auto DoFootstep = [doWooble, &ComputeVolumeAndFreq](CPedSAInterface* ped, bool isLeftFoot, bool forAnim = false)
+    auto DoFootstep = [doWooble, &ComputeVolumeAndFreq](CPedSAInterface* ped, bool isLeftFoot, bool forAnim = false, float customFreq = 1.0f)
     {
         if (ped->pedAudio.canAddEvent) // CPedAudio::AddEvent
         {
             float volumeOffset, relativeFreq;
-            ComputeVolumeAndFreq(ped, volumeOffset, relativeFreq, forAnim);
+            ComputeVolumeAndFreq(ped, volumeOffset, relativeFreq, forAnim, customFreq);
 
             ped->pedAudio.AddAudioEvent(isLeftFoot ? AudioEvents::AE_PED_FOOTSTEP_LEFT : AudioEvents::AE_PED_FOOTSTEP_RIGHT, volumeOffset, relativeFreq, nullptr, 0, 0, 0);
         }
@@ -651,14 +656,14 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
         ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, isLeftFoot ? 1 : 0, doWooble);
     };
 
-    auto DoFootstepForAnim = [DoFootstep](CAnimBlendAssociationSAInterface* anim, CPedSAInterface* ped, float stepInterval)
+    auto DoFootstepForAnim = [DoFootstep](CAnimBlendAssociationSAInterface* anim, CPedSAInterface* ped, float stepInterval, float frequency)
     {
         static bool  leftStep = true;
         static float lastStepTime = 0.0f;
 
         if (anim->fCurrentTime - lastStepTime >= stepInterval)
         {
-            DoFootstep(ped, leftStep, true);
+            DoFootstep(ped, leftStep, true, frequency);
 
             leftStep = !leftStep;
             lastStepTime += stepInterval;
@@ -701,15 +706,23 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
         // Checking for the TASK_SIMPLE_NAMED_ANIM task is not sufficient, because it usually doesn't exist in the following cases.
         // The ped has moveState set to STANDING_STILL, and the walkAnim flag on animations is not set,
 
-        // For the non-partial animations, walkAnim is always null
-        if (!walkAnim)
+        if (walkAnim)
         {
-            auto checkWalkingAnim = [&](const char* animName, float stepInterval) -> bool
+            bool hasPartialAnimWithWalking =
+                std::any_of(std::begin(CAnimManagerSA::partialAnimsWithWalking), std::end(CAnimManagerSA::partialAnimsWithWalking),
+                            [&](const char* name) { return pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, name); });
+
+            hasValidWalkAnim = hasPartialAnimWithWalking;
+        }
+
+        if (!hasValidWalkAnim)
+        {
+            auto checkWalkingAnim = [&](const char* animName, float stepInterval, float frequency) -> bool
             {
                 auto assoc = pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, animName);
                 if (assoc)
                 {
-                    DoFootstepForAnim(assoc->GetInterface(), ped, stepInterval);
+                    DoFootstepForAnim(assoc->GetInterface(), ped, stepInterval, frequency);
                     return true;
                 }
                 return false;
@@ -717,21 +730,9 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
 
             for (const auto& walkingAnim : CAnimManagerSA::walkingAnims)
             {
-                if (checkWalkingAnim(walkingAnim.animName, walkingAnim.stepInterval))
-                {
-                    // checkWalkingAnim doing footsteps for the animation, so we can skip default footstep handling
-                    hasValidWalkAnim = false;
+                if (checkWalkingAnim(walkingAnim.animName, walkingAnim.stepInterval, walkingAnim.frequency))
                     break;
-                }
             }
-        }
-        else // For partial animations, walkAnim exists, but walkcycleBlend and partialBlend have values that don't match the default condition
-        {
-            bool hasPartialAnimWithWalking =
-                std::any_of(std::begin(CAnimManagerSA::partialAnimsWithWalking), std::end(CAnimManagerSA::partialAnimsWithWalking),
-                            [&](const char* name) { return pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, name); });
-
-            hasValidWalkAnim = hasPartialAnimWithWalking && walkAnim;
         }
     }
 
