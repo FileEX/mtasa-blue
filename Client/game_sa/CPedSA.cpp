@@ -623,7 +623,7 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
                     relativeFreq = 1.2f;
                     break;
                 default:
-                    // A custom option so that footstep sounds for animations aren�t quieter than normal steps
+                    // A custom option so that footstep sounds for animations aren't quieter than normal steps
                     volumeOffset = forAnim ? -6.0f : -12.0f;
                     relativeFreq = forAnim ? 1.0f : 0.9f;
                     break;
@@ -651,7 +651,7 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
         ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, isLeftFoot ? 1 : 0, doWooble);
     };
 
-    auto DoFootstepForAnim = [DoFootstep, ComputeVolumeAndFreq](CAnimBlendAssociationSAInterface* anim, CPedSAInterface* ped, float stepInterval)
+    auto DoFootstepForAnim = [DoFootstep](CAnimBlendAssociationSAInterface* anim, CPedSAInterface* ped, float stepInterval)
     {
         static bool  leftStep = true;
         static float lastStepTime = 0.0f;
@@ -694,160 +694,177 @@ void __fastcall CPedSA::PlayFootSteps(CPedSAInterface* ped)
     for (auto& assoc = anim; assoc != nullptr; assoc = pGame->GetAnimManager()->RpAnimBlendGetNextAssociation(assoc))
         UpdateAnimBlend(assoc->GetInterface());
 
-    if (!walkAnim || walkcycleBlend <= 0.5f || partialBlend >= 1.0f)
+    bool hasValidWalkAnim = walkAnim && walkcycleBlend > 0.5f && partialBlend < 1.0f;
+    if (!hasValidWalkAnim)
     {
-        // Custom bugfix GitHub Issue #4359
-        // Checking for the TASK_SIMPLE_NAMED_ANIM task is not sufficient, because it usually doesn�t exist in the following cases.
+        // Bugfix GitHub Issue #4359
+        // Checking for the TASK_SIMPLE_NAMED_ANIM task is not sufficient, because it usually doesn't exist in the following cases.
         // The ped has moveState set to STANDING_STILL, and the walkAnim flag on animations is not set,
-        auto checkWalkingAnim = [&](const char* animName, float stepInterval) -> bool
+
+        // For the non-partial animations, walkAnim is always null
+        if (!walkAnim)
         {
-            auto assoc = pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, animName);
-            if (assoc)
+            auto checkWalkingAnim = [&](const char* animName, float stepInterval) -> bool
             {
-                DoFootstepForAnim(assoc->GetInterface(), ped, stepInterval);
-                return true;
+                auto assoc = pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, animName);
+                if (assoc)
+                {
+                    DoFootstepForAnim(assoc->GetInterface(), ped, stepInterval);
+                    return true;
+                }
+                return false;
+            };
+
+            for (const auto& walkingAnim : CAnimManagerSA::walkingAnims)
+            {
+                if (checkWalkingAnim(walkingAnim.animName, walkingAnim.stepInterval))
+                {
+                    // checkWalkingAnim doing footsteps for the animation, so we can skip default footstep handling
+                    hasValidWalkAnim = false;
+                    break;
+                }
             }
-            return false;
+        }
+        else // For partial animations, walkAnim exists, but walkcycleBlend and partialBlend have values that don't match the default condition
+        {
+            bool hasPartialAnimWithWalking =
+                std::any_of(std::begin(CAnimManagerSA::partialAnimsWithWalking), std::end(CAnimManagerSA::partialAnimsWithWalking),
+                            [&](const char* name) { return pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, name); });
+
+            hasValidWalkAnim = hasPartialAnimWithWalking && walkAnim;
+        }
+    }
+
+    if (hasValidWalkAnim)
+    {
+        static constexpr float INITIAL_FOOT_LANDED_RATIO = 1.0f / 15.0f;
+        static constexpr float DUCK_FOOTSTEP_MOVE_TIME = 6.0f / 30.0f;
+
+        eAnimID animID = static_cast<eAnimID>(walkAnim->sAnimID);
+        doWooble = (animID == eAnimID::ANIM_ID_WALK || animID == eAnimID::ANIM_ID_RUN || animID == eAnimID::ANIM_ID_SPRINT);
+
+        float leftFootLanded = walkAnim->pAnimHierarchy->fTotalTime * INITIAL_FOOT_LANDED_RATIO;
+        float rightFootLanded = walkAnim->pAnimHierarchy->fTotalTime / 2.0f + leftFootLanded;
+        if (ped->pedFlags.bIsDucking)
+        {
+            leftFootLanded += DUCK_FOOTSTEP_MOVE_TIME;
+            rightFootLanded += DUCK_FOOTSTEP_MOVE_TIME;
+        }
+
+        auto HandleFoot = [&](bool isLeftFoot)
+        {
+            float footTime = isLeftFoot ? leftFootLanded : rightFootLanded;
+
+            if (ped->pPedStats->id == 40)  // STAT_SKATER
+            {
+                float leftDown = 0.0f;
+                float rightDown = (animID == eAnimID::ANIM_ID_WALK) ? 16.0f / 30.0f : 10.0f / 30.0f;
+                float volume = 1.0f;
+
+                // SurfaceInfos_c::GetAdhesionGroup
+                AdhesionGroups::Enum surface = ((AdhesionGroups::Enum(__thiscall*)(void*, int))0x55E5C0)((void*)0xB79538, ped->m_ucCollisionContactSurfaceType);
+
+                switch (surface)
+                {
+                    case AdhesionGroups::LOOSE:
+                        if (rand() % 127 > 0)
+                            ped->vecAnimMovingShiftLocal *= 0.5f;
+
+                        volume = 0.5f;
+                        break;
+                    case AdhesionGroups::SAND:
+                        if (rand() % 63 > 0)
+                            ped->vecAnimMovingShiftLocal *= 0.2f;
+
+                        volume = 0.2f;
+                        break;
+                    case AdhesionGroups::WET:
+                        ped->vecAnimMovingShiftLocal *= 0.3f;
+                        volume = 0.2f;
+                        break;
+                    default:
+                        break;
+                }
+
+                float downTime = isLeftFoot ? leftDown : rightDown;
+                if (volume > 0.2f && walkAnim->fCurrentTime > downTime && walkAnim->fCurrentTime - walkAnim->fTimeStep <= downTime)
+                    ped->pedAudio.AddAudioEvent(isLeftFoot ? AudioEvents::AE_PED_SKATE_LEFT : AudioEvents::AE_PED_SKATE_RIGHT, std::log10(volume) * 20.0f,
+                                                animID == eAnimID::ANIM_ID_WALK ? 0.75f : 1.0f, nullptr, 0, 0, 0);
+
+                return;
+            }
+
+            if (walkAnim->fCurrentTime >= footTime && walkAnim->fCurrentTime - walkAnim->fTimeStep < footTime)
+            {
+                if (ped->bPedType < 2 && ped->pPlayerData)
+                {
+                    CPlayerPedDataSAInterface* playerData = ped->pPlayerData;
+
+                    // CPedClothesDesc::GetIsWearingBalaclava
+                    bool  doingRobbery = ((bool(__fastcall*)(CPedClothesDesc*, int))0x5A7950)(playerData->m_pClothes, 0);
+                    float volume = 0.0f;
+
+                    // 30 = SOUNDVOL_BARELY_AUDIBLE
+                    // 45 = SOUNDVOL_NORM_FOOTSTEPS,
+                    // 55 = SOUNDVOL_HEAVY_FOOTSTEPS,
+                    // 65 = SOUNDVOL_HEAVY_FOOTSTEPS + 10
+                    switch (ped->moveState)
+                    {
+                        case PedMoveState::PEDMOVE_SPRINT:
+                            volume = doingRobbery ? 65.0f : 55.0f;
+                            break;
+                        case PedMoveState::PEDMOVE_RUN:
+                        case PedMoveState::PEDMOVE_JOG:
+                            if (playerData->m_moveBlendRatio < 2.0f)
+                            {
+                                if (doingRobbery && playerData->m_moveBlendRatio > 1.1f)
+                                    volume = 30.0f + 20.0f * (playerData->m_moveBlendRatio - 1.0f);
+                                else if (playerData->m_moveBlendRatio > 1.5f)
+                                    volume = 30.0f + 15.0f * (playerData->m_moveBlendRatio - 1.0f);
+                            }
+                            else
+                                volume = doingRobbery ? 55.0f : 45.0f;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (volume > 0.0f)
+                    {
+                        CEventSoundQuietSAInterface eventFootstepNoise(ped, volume);
+
+                        // GetEventGlobalGroup
+                        void* eventGlobalGroup = ((void*(__cdecl*)())0x4ABA50)();
+
+                        // CEventGroup::Add
+                        ((void(__thiscall*)(void*, void*, int))0x4AB420)(eventGlobalGroup, &eventFootstepNoise, 0);
+                    }
+                }
+
+                DoFootstep(ped, isLeftFoot);
+            }
         };
 
-        if (checkWalkingAnim("cs_wuzi_pt1", 0.6f) || checkWalkingAnim("wuzi_walk", 0.5f))
-            return;
-
-        static constexpr const char* partialAnimsWithWalking[] = {"crry_prtial", "silence_reload"};
-        bool hasPartialAnimWithWalking = std::any_of(std::begin(partialAnimsWithWalking), std::end(partialAnimsWithWalking), [&](const char* name)
-            {
-                return pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(ped->m_pRwObject, name);
-            });
-
-        if (!hasPartialAnimWithWalking)
-            return;
-
-        auto walkAssoc = pGame->GetAnimManager()->RpAnimBlendClumpGetFirstAssociation(ped->m_pRwObject);
-        UpdateAnimBlend(walkAssoc->GetInterface());
-
-        if (!walkAnim)
-            return;
+        HandleFoot(true);
+        HandleFoot(false);
     }
 
-    static constexpr float INITIAL_FOOT_LANDED_RATIO = 1.0f / 15.0f;
-    static constexpr float DUCK_FOOTSTEP_MOVE_TIME = 6.0f / 30.0f;
-
-    eAnimID animID = static_cast<eAnimID>(walkAnim->sAnimID);
-    doWooble = (animID == eAnimID::ANIM_ID_WALK || animID == eAnimID::ANIM_ID_RUN || animID == eAnimID::ANIM_ID_SPRINT);
-
-    float leftFootLanded = walkAnim->pAnimHierarchy->fTotalTime * INITIAL_FOOT_LANDED_RATIO;
-    float rightFootLanded = walkAnim->pAnimHierarchy->fTotalTime / 2.0f + leftFootLanded;
-    if (ped->pedFlags.bIsDucking)
+    if (ped->pedFlags.bIsLanding)
     {
-        leftFootLanded += DUCK_FOOTSTEP_MOVE_TIME;
-        rightFootLanded += DUCK_FOOTSTEP_MOVE_TIME;
-    }
-
-    auto HandleFoot = [&](bool isLeftFoot)
-    {
-        float footTime = isLeftFoot ? leftFootLanded : rightFootLanded;
-
-        if (ped->pPedStats->id == 40) // STAT_SKATER
-        {
-            float leftDown = 0.0f;
-            float rightDown = (animID == eAnimID::ANIM_ID_WALK) ? 16.0f / 30.0f : 10.0f / 30.0f;
-            float volume = 1.0f;
-
-            // SurfaceInfos_c::GetAdhesionGroup
-            AdhesionGroups::Enum surface = ((AdhesionGroups::Enum(__thiscall*)(void*, int))0x55E5C0)((void*)0xB79538, ped->m_ucCollisionContactSurfaceType);
-
-            switch (surface)
-            {
-                case AdhesionGroups::LOOSE:
-                    if (rand() % 127 > 0)
-                        ped->vecAnimMovingShiftLocal *= 0.5f;
-
-                    volume = 0.5f;
-                    break;
-                case AdhesionGroups::SAND:
-                    if (rand() % 63 > 0)
-                        ped->vecAnimMovingShiftLocal *= 0.2f;
-
-                    volume = 0.2f;
-                    break;
-                case AdhesionGroups::WET:
-                    ped->vecAnimMovingShiftLocal *= 0.3f;
-                    volume = 0.2f;
-                    break;
-            }
-
-            float downTime = isLeftFoot ? leftDown : rightDown;
-            if (volume > 0.2f && walkAnim->fCurrentTime > downTime && walkAnim->fCurrentTime - walkAnim->fTimeStep <= downTime)
-                ped->pedAudio.AddAudioEvent(isLeftFoot ? AudioEvents::AE_PED_SKATE_LEFT : AudioEvents::AE_PED_SKATE_RIGHT, std::log10(volume) * 20.0f, animID == eAnimID::ANIM_ID_WALK ? 0.75f : 1.0f, nullptr, 0, 0, 0);
-
+        // CTaskManager::GetSimplestActiveTask
+        auto* task = ((CTaskSAInterface * (__thiscall*)(void*))0x6819D0)(&ped->pPedIntelligence->taskManager);
+        if (!task)
             return;
-        }
 
-        if (walkAnim->fCurrentTime >= footTime && walkAnim->fCurrentTime - walkAnim->fTimeStep < footTime)
-        {
-            if (ped->bPedType < 2 && ped->pPlayerData)
-            {
-                CPlayerPedDataSAInterface* playerData = ped->pPlayerData;
+        eTaskType taskType = reinterpret_cast<eTaskType(__thiscall*)(void*)>(task->VTBL->GetTaskType)(task);
+        if (taskType != TASK_SIMPLE_LAND)
+            return;
 
-                // CPedClothesDesc::GetIsWearingBalaclava
-                bool                       doingRobbery = ((bool(__fastcall*)(CPedClothesDesc*, int))0x5A7950)(playerData->m_pClothes, 0);
-                float                      volume = 0.0f;
-
-                // 30 = SOUNDVOL_BARELY_AUDIBLE
-                // 45 = SOUNDVOL_NORM_FOOTSTEPS,
-                // 55 = SOUNDVOL_HEAVY_FOOTSTEPS,
-                // 65 = SOUNDVOL_HEAVY_FOOTSTEPS + 10
-                switch (ped->moveState)
-                {
-                    case PedMoveState::PEDMOVE_SPRINT:
-                        volume = doingRobbery ? 65.0f : 55.0f;
-                        break;
-                    case PedMoveState::PEDMOVE_RUN:
-                    case PedMoveState::PEDMOVE_JOG:
-                        if (playerData->m_moveBlendRatio < 2.0f)
-                        {
-                            if (doingRobbery && playerData->m_moveBlendRatio > 1.1f)
-                                volume = 30.0f + 20.0f * (playerData->m_moveBlendRatio - 1.0f);
-                            else if (playerData->m_moveBlendRatio > 1.5f)
-                                volume = 30.0f + 15.0f * (playerData->m_moveBlendRatio - 1.0f);
-                        }
-                        else
-                            volume = doingRobbery ? 55.0f : 45.0f;
-                        break;
-                }
-
-                if (volume > 0.0f)
-                {
-                    CEventSoundQuietSAInterface eventFootstepNoise(ped, volume);
-
-                    // GetEventGlobalGroup
-                    void* eventGlobalGroup = ((void*(__cdecl*)())0x4ABA50)();
-
-                    // CEventGroup::Add
-                    ((void(__thiscall*)(void*, void*, int))0x4AB420)(eventGlobalGroup, &eventFootstepNoise, 0);
-                }
-            }
-
-            DoFootstep(ped, isLeftFoot);
-        }
-    };
-
-    HandleFoot(true);
-    HandleFoot(false);
-
-    // CTaskManager::GetSimplestActiveTask
-    auto* task = ((CTaskSAInterface * (__thiscall*)(void*))0x6819D0)(&ped->pPedIntelligence->taskManager);
-    if (!task)
-        return;
-
-    eTaskType taskType = reinterpret_cast<eTaskType(__thiscall*)(void*)>(task->VTBL->GetTaskType)(task);
-    if (taskType != TASK_SIMPLE_LAND)
-        return;
-
-    if (((bool(__thiscall*)(void*))0x678FE0)((void*)task)) // CTaskSimpleLand::RightFootLanded
-        ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, 0, true); // CPed::DoFootLanded
-    else if (((bool(__thiscall*)(void*))0x679010)((void*)task)) // CTaskSimpleLand::LeftFootLanded
-        ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, 1, true); // CPed::DoFootLanded
+        if (((bool(__thiscall*)(void*))0x678FE0)((void*)task))                         // CTaskSimpleLand::RightFootLanded
+            ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, 0, true);  // CPed::DoFootLanded
+        else if (((bool(__thiscall*)(void*))0x679010)((void*)task))                    // CTaskSimpleLand::LeftFootLanded
+            ((void(__thiscall*)(CPedSAInterface*, int, bool))0x5E5380)(ped, 1, true);  // CPed::DoFootLanded
+    }
 }
 
 void CPedSA::SetInWaterFlags(bool inWater)

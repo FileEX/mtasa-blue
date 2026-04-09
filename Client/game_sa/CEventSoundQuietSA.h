@@ -24,9 +24,15 @@ public:
     std::uint32_t       startTimeInMs{};
     CVector             position{};
 
-    CEventSoundQuietSAInterface(CEntitySAInterface* ped, float volume, std::uint32_t startTimeInMs = 0, CVector& pos = CVector()) 
+    CEventSoundQuietSAInterface(CEntitySAInterface* ped, float volume, std::uint32_t startTimeInMs = 0, CVector* pos = nullptr) 
     {
-        ((void*(__thiscall*)(CEventSoundQuietSAInterface*, CEntitySAInterface*, float, int, CVector*))0x5E05B0)(this, ped, volume, startTimeInMs, &pos);
+        if (!pos)
+        {
+            CVector defaultPos{};
+            pos = &defaultPos;
+        }
+
+        ((void*(__thiscall*)(CEventSoundQuietSAInterface*, CEntitySAInterface*, float, int, CVector*))0x5E05B0)(this, ped, volume, startTimeInMs, pos);
     }
 
     ~CEventSoundQuietSAInterface()
