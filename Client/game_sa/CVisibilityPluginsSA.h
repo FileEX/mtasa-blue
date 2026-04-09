@@ -12,9 +12,24 @@
 #pragma once
 
 #include <game/CVisibilityPlugins.h>
+#include "CLinkListSA.h"
 
 #define FUNC_CVisiblityPlugins_SetClumpAlpha 0x732B00
 #define FUNC_CVisibilityPlugins_GetAtomicId  0x732370
+
+struct AlphaObjectInfoSA
+{
+    void*           object;
+    void*           callback;
+    float           distance;
+};
+
+struct RenderingListState
+{
+    CLinkListSA<AlphaObjectInfoSA>* list;
+    std::size_t                     size;
+    bool                            pendingReinit;
+};
 
 class CVisibilityPluginsSA : public CVisibilityPlugins
 {
@@ -23,4 +38,15 @@ public:
     int  GetAtomicId(RwObject* pAtomic);
 
     bool InsertEntityIntoEntityList(void* entity, float distance, void* callback);
+    void SetRenderingListSize(RenderingEntityListType listType, std::size_t elementsCount) override;
+
+    static void ResetRenderingEntityLists();
+    static void StaticSetHooks();
+
+private:
+    static void CheckRenderingList(RenderingListState& state);
+    static void ReInitRenderingList(CLinkListSA<AlphaObjectInfoSA>* list, std::size_t count);
+
+    static void* __fastcall InsertAlphaEntityIntoSortedList(CLinkListSA<AlphaObjectInfoSA>* entitiesList, void*, AlphaObjectInfoSA* info);
+    static void* __fastcall InsertUnderwaterEntityIntoSortedList(CLinkListSA<AlphaObjectInfoSA>* entitiesList, void*, AlphaObjectInfoSA* info);
 };
