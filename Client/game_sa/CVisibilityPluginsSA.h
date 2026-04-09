@@ -19,9 +19,9 @@
 
 struct AlphaObjectInfoSA
 {
-    void*           object;
-    void*           callback;
-    float           distance;
+    void* object;
+    void* callback;
+    float distance;
 };
 
 struct RenderingListState

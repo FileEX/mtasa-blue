@@ -14,7 +14,7 @@ template <typename T>
 class CLinkSA
 {
 public:
-    T data;
+    T           data;
     CLinkSA<T>* prev;
     CLinkSA<T>* next;
 

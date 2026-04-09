@@ -18,7 +18,8 @@
 static RenderingListState alphaEntitiesList{(CLinkListSA<AlphaObjectInfoSA>*)0xC88120, (*(std::size_t*)0x733B05) / sizeof(CLinkSA<AlphaObjectInfoSA>), false};
 
 // m_alphaUnderwaterEntityList
-static RenderingListState underwaterEntitiesList{(CLinkListSA<AlphaObjectInfoSA>*)0xC88178, (*(std::size_t*)0x733BD5) / sizeof(CLinkSA<AlphaObjectInfoSA>), false};
+static RenderingListState underwaterEntitiesList{(CLinkListSA<AlphaObjectInfoSA>*)0xC88178, (*(std::size_t*)0x733BD5) / sizeof(CLinkSA<AlphaObjectInfoSA>),
+                                                 false};
 
 void CVisibilityPluginsSA::SetClumpAlpha(RpClump* pClump, int iAlpha)
 {
@@ -120,8 +121,8 @@ void CVisibilityPluginsSA::ResetRenderingEntityLists()
 
 void CVisibilityPluginsSA::StaticSetHooks()
 {
-    HookInstallCall(0x7345F2, (DWORD)InsertAlphaEntityIntoSortedList); // CVisibilityPlugins::InsertEntityIntoSortedList
-    HookInstallCall(0x733DF5, (DWORD)InsertAlphaEntityIntoSortedList); // CVisibilityPlugins::InsertObjectIntoSortedList
+    HookInstallCall(0x7345F2, (DWORD)InsertAlphaEntityIntoSortedList);  // CVisibilityPlugins::InsertEntityIntoSortedList
+    HookInstallCall(0x733DF5, (DWORD)InsertAlphaEntityIntoSortedList);  // CVisibilityPlugins::InsertObjectIntoSortedList
 
     HookInstallCall(0x7345D9, (DWORD)InsertUnderwaterEntityIntoSortedList);  // CVisibilityPlugins::InsertEntityIntoSortedList
     HookInstallCall(0x733DB5, (DWORD)InsertUnderwaterEntityIntoSortedList);  // CVisibilityPlugins::InsertEntityIntoUnderwaterList

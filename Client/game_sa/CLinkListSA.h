@@ -17,10 +17,10 @@ template <typename T>
 class CLinkListSA
 {
 public:
-    CLinkSA<T> usedListHead{};
-    CLinkSA<T> usedListTail{};
-    CLinkSA<T> freeListHead{};
-    CLinkSA<T> freeListTail{};
+    CLinkSA<T>  usedListHead{};
+    CLinkSA<T>  usedListTail{};
+    CLinkSA<T>  freeListHead{};
+    CLinkSA<T>  freeListTail{};
     CLinkSA<T>* entries{};
 
     void* operator new(std::size_t size) { return ((void*(__cdecl*)(std::size_t))0x821195)(size); }
@@ -45,7 +45,8 @@ public:
 
     void Shutdown() { delete[] std::exchange(entries, nullptr); }
 
-    void Insert(CLinkSA<T>& link) {
+    void Insert(CLinkSA<T>& link)
+    {
         link.Remove();
         link.Insert(&usedListHead);
     }
@@ -86,7 +87,7 @@ public:
             Remove(link);
     }
 
-     auto Remove(CLinkSA<T>* l)
+    auto Remove(CLinkSA<T>* l)
     {
         l->Remove();
         l->Insert(&freeListHead);
