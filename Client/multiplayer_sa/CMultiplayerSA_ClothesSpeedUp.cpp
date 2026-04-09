@@ -194,16 +194,15 @@ bool _cdecl ShouldSkipLoadRequestedModels(DWORD calledFrom)
     //      CClothesBuilder::ConstructTextures           5A6040 - 5A6520
     if (calledFrom > 0x5A55A0 && calledFrom < 0x5A6520)
     {
-        // Only skip if the last cache-loaded model is actually in processed state (loadState 1).
-        // If the cache load failed for any reason, loadState won't be 1 and we let
-        // the standard LoadRequestedModels run as fallback.
+        // Only skip if a file was actually served from cache and is in processed state (loadState 1).
+        // If no file was cache-loaded (iLastCacheFileId < 0) or the cache load failed,
+        // let the standard LoadRequestedModels run as fallback.
         if (iLastCacheFileId >= 0)
         {
             auto* pInfo = reinterpret_cast<SImgGTAItemInfo*>(reinterpret_cast<char*>(CStreaming__ms_aInfoForModel) + iLastCacheFileId * 20);
-            if (pInfo->uiLoadflag != 1)
-                return false;
+            if (pInfo->uiLoadflag == 1)
+                return true;
         }
-        return true;
     }
 
     return false;
@@ -339,7 +338,7 @@ bool SetClothingDirectorySize(int directorySize)
 #define HOOKSIZE_CClothesBuilder_CopyTexture 5
 static constexpr DWORD RETURN_CClothesBuilder_CopyTexture = 0x5A5735;
 
-void _declspec(naked) HOOK_CClothesBuilder_CopyTexture()
+static void _declspec(naked) HOOK_CClothesBuilder_CopyTexture()
 {
     MTA_VERIFY_HOOK_LOCAL_SIZE;
 
