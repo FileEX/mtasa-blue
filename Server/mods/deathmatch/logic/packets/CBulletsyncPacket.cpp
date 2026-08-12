@@ -126,7 +126,6 @@ bool CBulletsyncPacket::Read(NetBitStreamInterface& stream)
         return false;
 
     CPlayer* pPlayer = static_cast<CPlayer*>(m_pSourceElement);
-    if (pPlayer)
 
     // Check if player is spawned and alive
     if (!pPlayer || !pPlayer->IsSpawned() || pPlayer->IsDead())
