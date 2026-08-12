@@ -632,6 +632,12 @@ bool CStaticFunctionDefinitions::GetElementRadius(CClientEntity& Entity, float& 
             pModelInfo = g_pGame->GetModelInfo(Object.GetModel());
             break;
         }
+        case CCLIENTBUILDING:
+        {
+            CClientBuilding& Building = static_cast<CClientBuilding&>(Entity);
+            pModelInfo = g_pGame->GetModelInfo(Building.GetModel());
+            break;
+        }
     }
     if (pModelInfo)
     {
@@ -729,12 +735,6 @@ bool CStaticFunctionDefinitions::GetElementAlpha(CClientEntity& Entity, unsigned
         default:
             return false;
     }
-    return true;
-}
-
-bool CStaticFunctionDefinitions::IsElementOnScreen(CClientEntity& Entity, bool& bOnScreen)
-{
-    bOnScreen = Entity.IsOnScreen();
     return true;
 }
 
@@ -1324,6 +1324,29 @@ bool CStaticFunctionDefinitions::SetElementInterior(CClientEntity& Entity, unsig
             // Update all of our streamers/managers to the local player's interior
             m_pClientGame->SetAllInteriors(ucInterior);
         }
+    }
+
+    switch (Entity.GetType())
+    {
+        case CCLIENTPLAYER:
+        case CCLIENTPED:
+        case CCLIENTVEHICLE:
+        {
+            CVector vecEntityPosition;
+            Entity.GetPosition(vecEntityPosition);
+            m_pColManager->DoHitDetection(vecEntityPosition, 0.0f, &Entity);
+            break;
+        }
+        case CCLIENTMARKER:
+        case CCLIENTPICKUP:
+        {
+            CClientColShape* pColShape = GetElementColShape(&Entity);
+            if (pColShape)
+                RefreshColShapeColliders(pColShape);
+            break;
+        }
+        default:
+            break;
     }
 
     return true;
@@ -2262,9 +2285,9 @@ bool CStaticFunctionDefinitions::SetPedCanBeKnockedOffBike(CClientEntity& Entity
 }
 
 bool CStaticFunctionDefinitions::SetPedAnimation(CClientEntity& Entity, const SString& strBlockName, const char* szAnimName, int iTime, int iBlend, bool bLoop,
-                                                 bool bUpdatePosition, bool bInterruptable, bool bFreezeLastFrame)
+                                                 bool bUpdatePosition, bool bInterruptible, bool bFreezeLastFrame)
 {
-    RUN_CHILDREN(SetPedAnimation(**iter, strBlockName, szAnimName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptable, bFreezeLastFrame))
+    RUN_CHILDREN(SetPedAnimation(**iter, strBlockName, szAnimName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame))
 
     if (IS_PED(&Entity))
     {
@@ -2276,7 +2299,7 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CClientEntity& Entity, const SS
             {
                 Ped.SetCurrentAnimationCustom(false);
                 Ped.SetNextAnimationNormal();
-                Ped.RunNamedAnimation(pBlock, szAnimName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptable, bFreezeLastFrame);
+                Ped.RunNamedAnimation(pBlock, szAnimName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame);
                 return true;
             }
             else
@@ -2295,7 +2318,7 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CClientEntity& Entity, const SS
                         Ped.SetNextAnimationCustom(pIFP, szAnimName);
 
                         const char* szGateWayAnimationName = g_pGame->GetAnimManager()->GetGateWayAnimationName();
-                        Ped.RunNamedAnimation(pBlock, szGateWayAnimationName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptable, bFreezeLastFrame);
+                        Ped.RunNamedAnimation(pBlock, szGateWayAnimationName, iTime, iBlend, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame);
                         return true;
                     }
                 }
@@ -2662,7 +2685,7 @@ bool CStaticFunctionDefinitions::SetPedOxygenLevel(CClientEntity& Entity, float 
 
 bool CStaticFunctionDefinitions::GetBodyPartName(unsigned char ucID, SString& strOutName)
 {
-    if (ucID <= 10)
+    if (ucID < 10)
     {
         // Grab the name and check it's length
         strOutName = CClientPed::GetBodyPartName(ucID);
@@ -5091,9 +5114,7 @@ bool CStaticFunctionDefinitions::SetCameraMatrix(const CVector& vecPosition, CVe
         return false;
 
     if (!m_pCamera->IsInFixedMode())
-    {
         m_pCamera->ToggleCameraFixedMode(true);
-    }
 
     // Put the camera there
     m_pCamera->SetPosition(vecPosition);
@@ -8302,8 +8323,17 @@ bool CStaticFunctionDefinitions::GetSoundProperties(CClientSound& Sound, float& 
     return true;
 }
 
+static bool IsValidFFTBandCount(int iLength, int iBands)
+{
+    // BASS provides iLength / 2 spectrum values, so additional bands cannot be populated without reading beyond the FFT data.
+    return iBands >= 0 && iBands <= iLength / 2;
+}
+
 float* CStaticFunctionDefinitions::GetSoundFFTData(CClientSound& Sound, int iLength, int iBands)
 {
+    if (!IsValidFFTBandCount(iLength, iBands))
+        return nullptr;
+
     // Get our FFT Data
     float* fData = Sound.GetFFTData(iLength);
     if (iBands != 0 && fData != NULL)
@@ -8359,6 +8389,9 @@ float* CStaticFunctionDefinitions::GetSoundFFTData(CClientSound& Sound, int iLen
 
 float* CStaticFunctionDefinitions::GetSoundFFTData(CClientPlayer& Player, int iLength, int iBands)
 {
+    if (!IsValidFFTBandCount(iLength, iBands))
+        return nullptr;
+
     CClientPlayerVoice* pVoice = Player.GetVoice();
     if (pVoice != NULL && Player.GetVoice()->IsActive())
     {
@@ -9990,7 +10023,7 @@ bool CStaticFunctionDefinitions::WarpPedIntoVehicle(CClientPed* pPed, CClientVeh
         if (pPed->IsDead() || pVehicle->GetHealth() <= 0.0f)
             return false;
 
-        // Toss the previous player out of it if neccessary
+        // Toss the previous player out of it if necessary
         if (CClientPed* pPreviousOccupant = pVehicle->GetOccupant(uiSeat))
             RemovePedFromVehicle(pPreviousOccupant);
 

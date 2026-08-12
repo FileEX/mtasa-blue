@@ -1195,7 +1195,7 @@ namespace
 //
 // Hook CCore::OnPreCreateDevice
 //
-// Modify paramters
+// Modify parameters
 //
 ////////////////////////////////////////////////
 void CCore::OnPreCreateDevice(IDirect3D9* pDirect3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD& BehaviorFlags,
@@ -1225,7 +1225,7 @@ void CCore::OnPreCreateDevice(IDirect3D9* pDirect3D, UINT Adapter, D3DDEVTYPE De
     BehaviorFlagsOrig = BehaviorFlags;
     presentationParametersOrig = *pPresentationParameters;
 
-    WriteDebugEvent("  Original paramters:");
+    WriteDebugEvent("  Original parameters:");
     WriteDebugEvent(ToString(Adapter, DeviceType, hFocusWindow, BehaviorFlags, *pPresentationParameters));
 
     // Make sure DirectX Get...() calls will work
@@ -1236,7 +1236,7 @@ void CCore::OnPreCreateDevice(IDirect3D9* pDirect3D, UINT Adapter, D3DDEVTYPE De
 
     GetVideoModeManager()->PreCreateDevice(pPresentationParameters);
 
-    WriteDebugEvent("  Modified paramters:");
+    WriteDebugEvent("  Modified parameters:");
     WriteDebugEvent(ToString(Adapter, DeviceType, hFocusWindow, BehaviorFlags, *pPresentationParameters));
 }
 
@@ -1310,7 +1310,7 @@ HRESULT CCore::OnPostCreateDevice(HRESULT hResult, IDirect3D9* pDirect3D, UINT A
     BehaviorFlagsOrig = BehaviorFlags;
     presentationParametersOrig = *pPresentationParameters;
 
-    WriteDebugEvent("  Original paramters:");
+    WriteDebugEvent("  Original parameters:");
     WriteDebugEvent(ToString(Adapter, DeviceType, hFocusWindow, BehaviorFlags, *pPresentationParameters));
 
     // Make sure DirectX Get...() calls will work
@@ -1321,7 +1321,7 @@ HRESULT CCore::OnPostCreateDevice(HRESULT hResult, IDirect3D9* pDirect3D, UINT A
 
     GetVideoModeManager()->PreCreateDevice(pPresentationParameters);
 
-    WriteDebugEvent("  Modified paramters:");
+    WriteDebugEvent("  Modified parameters:");
     WriteDebugEvent(ToString(Adapter, DeviceType, hFocusWindow, BehaviorFlags, *pPresentationParameters));
 
     hResult = CreateDeviceInsist(2, 1000, pDirect3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);

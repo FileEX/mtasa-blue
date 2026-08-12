@@ -332,6 +332,7 @@ private:
     int  m_iUnminimizeFrameCounter;
     bool m_bDidRecreateRenderTargets;
     bool m_bIsWindowMinimized;
+    uint m_uiNextRenderTargetRetryTime;
 
     // Module loader objects.
     CModuleLoader m_GameModule;
