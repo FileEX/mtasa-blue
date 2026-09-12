@@ -943,7 +943,7 @@ private:
 
     long long m_timeLastDiscordStateUpdate;
 
-    std::int64_t m_serverTimeOffset;
+    std::int64_t m_serverTimeOffset{0};
 };
 
 extern CClientGame* g_pClientGame;

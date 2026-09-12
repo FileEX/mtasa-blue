@@ -6038,16 +6038,20 @@ void CClientPed::RunAnimationFromCache()
     if (!m_pAnimationBlock)
         return;
 
-    // Copy our name & startTime incase it gets deleted
+    // Copy some data incase it gets deleted
     std::string  animName = m_AnimationCache.strName;
     std::int64_t startTime = m_AnimationCache.startTime;
+    float        speed = m_AnimationCache.speed;
+    float        progress = m_AnimationCache.progress;
 
     // Run our animation
     RunNamedAnimation(m_pAnimationBlock, animName.c_str(), m_AnimationCache.iTime, m_AnimationCache.iBlend, m_AnimationCache.bLoop,
                       m_AnimationCache.bUpdatePosition, m_AnimationCache.bInterruptible, m_AnimationCache.bFreezeLastFrame);
 
-    // Restore our startTime
+    // Restore our startTime, speed nad progress
     m_AnimationCache.startTime = startTime;
+    m_AnimationCache.speed = speed;
+    m_AnimationCache.progress = progress;
 
     // Let's update animation progress & speed
     m_AnimationCache.updateInNextFrame = true;
@@ -6067,16 +6071,17 @@ void CClientPed::UpdateAnimationProgressAndSpeed()
     {
         float animLength = animAssoc->GetLength();
         float elapsedTime = static_cast<float>(g_pClientGame->GetSyncedTime() - m_AnimationCache.startTime) / 1000.0f;
+        float speed = m_AnimationCache.speed != 0 ? m_AnimationCache.speed : 1.0f;
 
         if (m_AnimationCache.bFreezeLastFrame)  // time and loop is ignored if freezeLastFrame is true
-            progress = (elapsedTime / animLength) * m_AnimationCache.speed;
+            progress = (elapsedTime / animLength) * speed;
         else
         {
             if (m_AnimationCache.bLoop)
-                progress = std::fmod(elapsedTime * m_AnimationCache.speed, animLength) / animLength;
+                progress = std::fmod(elapsedTime * speed, animLength) / animLength;
             else
                 // For non-looped animations, limit duration to animLength if time exceeds it
-                progress = elapsedTime / ((m_AnimationCache.iTime <= animLength ? m_AnimationCache.iTime : animLength) / m_AnimationCache.speed);
+                progress = elapsedTime / ((m_AnimationCache.iTime <= animLength ? m_AnimationCache.iTime : animLength) / speed);
         }
     }
     else

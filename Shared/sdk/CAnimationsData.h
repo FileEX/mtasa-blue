@@ -1412,7 +1412,6 @@ const std::unordered_map<std::string_view, float> g_animationDurations = {
     {"cat_safe_open_o", 3.33f},
     {"cat_safe_rob", 1.83f},
     {"shp_handsup_scr", 0.67f},
-    {"idle_rocket", 1.6f},
     {"rocketfire", 0.97f},
     {"walk_rocket", 1.07f},
     {"plane_align_lhs", 0.73f},

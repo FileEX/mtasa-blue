@@ -476,12 +476,12 @@ void CPacketHandler::Packet_ServerJoined(NetBitStreamInterface& bitStream)
     // and isMTAWindowFocused returns true even when the user is doing anything outside the MTA window.
     g_pClientGame->m_bFocused = g_pCore->IsFocused();
 
+    std::string serverName;
+    bitStream.ReadString(serverName);
+
     auto discord = g_pCore->GetDiscord();
     if (discord && discord->IsDiscordRPCEnabled())
     {
-        std::string serverName;
-        bitStream.ReadString(serverName);
-
         if (serverName.length() > 0)
         {
             g_pCore->SetLastConnectedServerName(serverName);
