@@ -4687,7 +4687,8 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CElement* pElement, con
 
                 // Update animation startTime
                 SPlayerAnimData data = pPed->GetAnimationData();
-                data.startTime = GetLocalTick() - static_cast<std::int64_t>(((GetAnimationLength(animName) * 1000.0f) * fProgress) / (data.speed != 0 ? data.speed : 1.0f));
+                data.startTime =
+                    GetLocalTick() - static_cast<std::int64_t>(((GetAnimationLength(animName) * 1000.0f) * fProgress) / (data.speed != 0 ? data.speed : 1.0f));
                 pPed->SetAnimationData(data);
             }
             else
