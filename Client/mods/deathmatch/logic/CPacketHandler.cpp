@@ -464,10 +464,6 @@ void CPacketHandler::Packet_ServerJoined(NetBitStreamInterface& bitStream)
     // Request the on join stuff
     g_pClientGame->GetNetAPI()->RPC(INITIAL_DATA_STREAM);
 
-    // Call the onClientPlayerJoin event for ourselves
-    CLuaArguments Arguments;
-    g_pClientGame->m_pLocalPlayer->CallEvent("onClientPlayerJoin", Arguments, true);
-
     g_pCore->UpdateRecentlyPlayed();
 
     // Update focus state after joining
@@ -489,9 +485,13 @@ void CPacketHandler::Packet_ServerJoined(NetBitStreamInterface& bitStream)
         }
     }
 
-    std::int64_t serverLocalTick;
-    bitStream.ReadInt64(serverLocalTick);
-    g_pClientGame->SetTimeOffsetFromServer(serverLocalTick - GetLocalTick());
+    std::int64_t serverLocalTick{};
+    if (bitStream.ReadInt64(serverLocalTick))
+        g_pClientGame->SetTimeOffsetFromServer(serverLocalTick - GetLocalTick());
+
+    // Call the onClientPlayerJoin event for ourselves
+    CLuaArguments Arguments;
+    g_pClientGame->m_pLocalPlayer->CallEvent("onClientPlayerJoin", Arguments, true);
 }
 
 void CPacketHandler::Packet_ServerDisconnected(NetBitStreamInterface& bitStream)
@@ -1044,6 +1044,7 @@ void CPacketHandler::Packet_PlayerList(NetBitStreamInterface& bitStream)
                                                             freezeLastFrame);
                 pPlayer->m_AnimationCache.startTime = startTime;
                 pPlayer->m_AnimationCache.speed = speed;
+                pPlayer->m_AnimationCache.updateInNextFrame = true;
 
                 pPlayer->SetHasSyncedAnim(true);
             }
@@ -4022,6 +4023,7 @@ retry:
                                                                     freezeLastFrame);
                         pPed->m_AnimationCache.startTime = startTime;
                         pPed->m_AnimationCache.speed = speed;
+                        pPed->m_AnimationCache.updateInNextFrame = true;
 
                         pPed->SetHasSyncedAnim(true);
                     }

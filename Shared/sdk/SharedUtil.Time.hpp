@@ -100,7 +100,7 @@ std::int64_t SharedUtil::GetTimestamp()
 // steady (non-decreasing) and not affected by system clock changes,
 // daylight saving adjustments, or manual time modifications.
 // Unlike system_clock-based timestamps, this value is not tied to
-// real-world calendar time.
+// real-world calendar time
 std::int64_t SharedUtil::GetLocalTick()
 {
     static const auto start = std::chrono::steady_clock::now();

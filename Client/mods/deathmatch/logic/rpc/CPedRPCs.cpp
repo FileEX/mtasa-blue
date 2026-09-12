@@ -256,9 +256,10 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
                 int         iTime;
                 int         iBlend = 250;
                 bool        bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, bTaskToBeRestoredOnAnimEnd;
+                std::int64_t startTime;
 
                 if (bitStream.ReadString<unsigned char>(animName) && bitStream.Read(iTime) && bitStream.ReadBit(bLoop) && bitStream.ReadBit(bUpdatePosition) &&
-                    bitStream.ReadBit(bInterruptible) && bitStream.ReadBit(bFreezeLastFrame))
+                    bitStream.ReadBit(bInterruptible) && bitStream.ReadBit(bFreezeLastFrame) && bitStream.ReadInt64(startTime))
                 {
                     bitStream.Read(iBlend);
                     bitStream.ReadBit(bTaskToBeRestoredOnAnimEnd);
@@ -274,7 +275,7 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
                         pPed->SetTaskToBeRestoredOnAnimEnd(bTaskToBeRestoredOnAnimEnd);
                         pPed->SetTaskTypeToBeRestoredOnAnimEnd((eTaskType)TASK_SIMPLE_DUCK);
 
-                        pPed->m_AnimationCache.startTime = g_pClientGame->GetSyncedTime();
+                        pPed->m_AnimationCache.startTime = startTime;
                         pPed->m_AnimationCache.speed = 1.0f;
 
                         pPed->SetHasSyncedAnim(true);
@@ -306,13 +307,10 @@ void CPedRPCs::SetPedAnimationProgress(CClientEntity* pSource, NetBitStreamInter
                 if (bitStream.Read(fProgress))
                 {
                     auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(pPed->GetClump(), animName.c_str());
+                    pPed->m_AnimationCache.progress = fProgress;
+
                     if (pAnimAssociation)
                         pAnimAssociation->SetCurrentProgress(fProgress);
-                    else
-                    {
-                        pPed->m_AnimationCache.progress = fProgress;
-                        pPed->m_AnimationCache.updateInNextFrame = true;
-                    }
                 }
             }
             else
@@ -336,11 +334,10 @@ void CPedRPCs::SetPedAnimationSpeed(CClientEntity* pSource, NetBitStreamInterfac
             if (bitStream.Read(fSpeed))
             {
                 auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(pPed->GetClump(), animName.c_str());
+                pPed->m_AnimationCache.speed = fSpeed;
+
                 if (pAnimAssociation)
-                {
                     pAnimAssociation->SetCurrentSpeed(fSpeed);
-                    pPed->m_AnimationCache.speed = fSpeed;
-                }
             }
         }
     }

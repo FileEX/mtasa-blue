@@ -15,7 +15,7 @@
 #include <string_view>
 #include <string>
 
-const std::unordered_map<std::string_view, float> g_animationDurations = {
+inline const std::unordered_map<std::string_view, float> g_animationDurations = {
     {"thrw_barl_thrw", 2.0f},
     {"stepsit_in", 1.67f},
     {"stepsit_loop", 3.33f},
@@ -1778,6 +1778,6 @@ namespace SharedUtil
             return it->second;
         }
 
-        return 1.0f;
+        return -1.0f;
     }
 };

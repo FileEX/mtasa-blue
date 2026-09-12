@@ -4640,8 +4640,9 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CElement* pElement, const SStri
                     pPed->SetChoking(false);
 
                 // Store anim data
+                std::int64_t startTime = GetLocalTick();
                 pPed->SetAnimationData(SPlayerAnimData{blockName, animName, iTime, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, iBlend,
-                                                       bTaskToBeRestoredOnAnimEnd, GetLocalTick()});
+                                                       bTaskToBeRestoredOnAnimEnd, startTime});
 
                 BitStream.pBitStream->WriteString<unsigned char>(blockName);
                 BitStream.pBitStream->WriteString<unsigned char>(animName);
@@ -4652,6 +4653,7 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CElement* pElement, const SStri
                 BitStream.pBitStream->WriteBit(bFreezeLastFrame);
                 BitStream.pBitStream->Write(iBlend);
                 BitStream.pBitStream->WriteBit(bTaskToBeRestoredOnAnimEnd);
+                BitStream.pBitStream->WriteInt64(startTime);
             }
             else
             {
@@ -4687,9 +4689,15 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CElement* pElement, con
 
                 // Update animation startTime
                 SPlayerAnimData data = pPed->GetAnimationData();
-                data.startTime =
-                    GetLocalTick() - static_cast<std::int64_t>(((GetAnimationLength(animName) * 1000.0f) * fProgress) / (data.speed != 0 ? data.speed : 1.0f));
-                pPed->SetAnimationData(data);
+
+                if (data.IsAnimating() && data.animName == animName)
+                {
+                    float length = GetAnimationLength(animName);
+                    if (length != -1.0f && data.speed > 0.0f)  // custom anims sync is unsupported now
+                        data.startTime = GetLocalTick() - static_cast<std::int64_t>(((length * 1000.0f) * fProgress) / data.speed);
+
+                    pPed->SetAnimationData(data);
+                }
             }
             else
             {
