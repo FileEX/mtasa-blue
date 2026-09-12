@@ -252,17 +252,19 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
         {
             if (!blockName.empty())
             {
-                std::string animName;
-                int         iTime;
-                int         iBlend = 250;
-                bool        bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, bTaskToBeRestoredOnAnimEnd;
+                std::string  animName;
+                int          iTime;
+                int          iBlend = 250;
+                bool         bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, bTaskToBeRestoredOnAnimEnd;
                 std::int64_t startTime;
 
                 if (bitStream.ReadString<unsigned char>(animName) && bitStream.Read(iTime) && bitStream.ReadBit(bLoop) && bitStream.ReadBit(bUpdatePosition) &&
-                    bitStream.ReadBit(bInterruptible) && bitStream.ReadBit(bFreezeLastFrame) && bitStream.ReadInt64(startTime))
+                    bitStream.ReadBit(bInterruptible) && bitStream.ReadBit(bFreezeLastFrame))
                 {
                     bitStream.Read(iBlend);
                     bitStream.ReadBit(bTaskToBeRestoredOnAnimEnd);
+                    bitStream.ReadInt64(startTime);
+
                     if (!pPed->IsDucked())
                     {
                         bTaskToBeRestoredOnAnimEnd = false;
@@ -307,10 +309,12 @@ void CPedRPCs::SetPedAnimationProgress(CClientEntity* pSource, NetBitStreamInter
                 if (bitStream.Read(fProgress))
                 {
                     auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(pPed->GetClump(), animName.c_str());
-                    pPed->m_AnimationCache.progress = fProgress;
-
                     if (pAnimAssociation)
                         pAnimAssociation->SetCurrentProgress(fProgress);
+                    else
+                        pPed->m_AnimationCache.updateInNextFrame = true;
+
+                    pPed->m_AnimationCache.progress = fProgress;
                 }
             }
             else

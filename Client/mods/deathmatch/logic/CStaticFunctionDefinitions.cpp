@@ -2385,11 +2385,9 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CClientEntity& Entity, 
             if (pAnimAssociation)
                 pAnimAssociation->SetCurrentProgress(fProgress);
             else
-            {
-                Ped.m_AnimationCache.progress = fProgress;
                 Ped.m_AnimationCache.updateInNextFrame = true;
-            }
 
+            Ped.m_AnimationCache.progress = fProgress;
             return true;
         }
         else
