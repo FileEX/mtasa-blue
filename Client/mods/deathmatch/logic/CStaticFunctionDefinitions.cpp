@@ -2382,12 +2382,19 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CClientEntity& Entity, 
         if (!strAnimName.empty())
         {
             auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(Ped.GetClump(), strAnimName);
-            if (pAnimAssociation)
-                pAnimAssociation->SetCurrentProgress(fProgress);
-            else
-                Ped.m_AnimationCache.updateInNextFrame = true;
+            bool match = (strAnimName == Ped.m_AnimationCache.strName);
 
-            Ped.m_AnimationCache.progress = fProgress;
+            if (pAnimAssociation)
+            {
+                pAnimAssociation->SetCurrentProgress(fProgress);
+                Ped.m_AnimationCache.progress = std::numeric_limits<float>::quiet_NaN();
+            }
+            else if (match)
+            {
+                Ped.m_AnimationCache.progress = fProgress;
+                Ped.m_AnimationCache.updateInNextFrame = true;
+            }
+
             return true;
         }
         else
@@ -2411,12 +2418,21 @@ bool CStaticFunctionDefinitions::SetPedAnimationSpeed(CClientEntity& Entity, con
         if (!strAnimName.empty())
         {
             auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(Ped.GetClump(), strAnimName);
-            if (pAnimAssociation)
-                pAnimAssociation->SetCurrentSpeed(fSpeed);
-            else
-                Ped.m_AnimationCache.updateInNextFrame = true;
+            bool match = (strAnimName == Ped.m_AnimationCache.strName);
 
-            Ped.m_AnimationCache.speed = fSpeed;
+            if (pAnimAssociation)
+            {
+                pAnimAssociation->SetCurrentSpeed(fSpeed);
+
+                if (match)
+                    Ped.m_AnimationCache.speed = fSpeed;
+            }
+            else if (match)
+            {
+                Ped.m_AnimationCache.speed = fSpeed;
+                Ped.m_AnimationCache.updateInNextFrame = true;
+            }
+
             return true;
         }
     }

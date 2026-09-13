@@ -302,7 +302,6 @@ public:
     std::vector<CPlayer*>::const_iterator NearPlayersIterEnd() { return m_nearPlayersList.end(); }
 
     const SPlayerAnimData& GetAnimationData() const noexcept { return m_animData; }
-    SPlayerAnimData        GetAnimationDataCopy() noexcept { return m_animData; }
     void                   SetAnimationData(const SPlayerAnimData& animData) { m_animData = animData; }
     void                   SetAnimationSpeed(float speed) { m_animData.speed = speed; };
 

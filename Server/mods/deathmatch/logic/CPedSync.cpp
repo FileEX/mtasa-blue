@@ -20,6 +20,7 @@
 #include "CColManager.h"
 #include "CSpatialDatabase.h"
 #include "CPlayerCamera.h"
+#include "CAnimationsData.h"
 
 CPedSync::CPedSync(CPlayerManager* pPlayerManager, CPedManager* pPedManager)
 {
@@ -91,11 +92,37 @@ void CPedSync::UpdateAllSyncer()
         const SPlayerAnimData& animData = (*iter)->GetAnimationData();
         if (animData.IsAnimating())
         {
-            // 1. time < 0, loop = true, anim never ends
-            // 2. time >= 0, loop = true, anim run for time
-            std::int64_t elapsedTime = currentLocalTick - animData.startTime;
-            if (!animData.freezeLastFrame && animData.time >= 0 && elapsedTime >= animData.time)
-                (*iter)->SetAnimationData({});
+            bool isLoop = animData.loop;
+            bool freeze = animData.freezeLastFrame;
+            int  time = animData.time;
+
+            // Determine the effective duration of the animation based on rules:
+            // 1. !isLoop && freeze -> plays full length
+            // 2. !isLoop && !freeze -> plays for customTime (if < 0, full length; if == 0, 0)
+            // 3. isLoop && !freeze -> plays for customTime if > 0, otherwise infinite if < 0
+            // 4. isLoop && freeze -> acts like infinite loop without freezing last frame
+            bool keepsStateForever = freeze || (isLoop && time < 0);
+
+            if (!keepsStateForever)
+            {
+                // Rule 2: time < 0 && min(time, length)
+                float animLength = GetAnimationLength(animData.animName);
+                float animLengthMs = (animLength > 0.0f) ? (animLength * 1000.0f) : 0.0f;
+
+                float effectiveDurationMs = animLengthMs;
+
+                if (time == 0)
+                    effectiveDurationMs = 0.0f;
+                else if (time > 0)
+                    effectiveDurationMs = std::min(static_cast<float>(time), animLengthMs);
+
+                float speed = (animData.speed > 0.0f) ? animData.speed : 1.0f;
+                float realDurationMs = effectiveDurationMs / speed;
+
+                std::int64_t elapsedTime = currentLocalTick - animData.startTime;
+                if (elapsedTime >= static_cast<std::int64_t>(realDurationMs))
+                    (*iter)->SetAnimationData({});
+            }
         }
 
         // It is a ped, yet not a player

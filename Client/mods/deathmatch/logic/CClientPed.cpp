@@ -6048,7 +6048,7 @@ void CClientPed::RunAnimationFromCache()
     RunNamedAnimation(m_pAnimationBlock, animName.c_str(), m_AnimationCache.iTime, m_AnimationCache.iBlend, m_AnimationCache.bLoop,
                       m_AnimationCache.bUpdatePosition, m_AnimationCache.bInterruptible, m_AnimationCache.bFreezeLastFrame);
 
-    // Restore our startTime, speed nad progress
+    // Restore our startTime, speed and progress
     m_AnimationCache.startTime = startTime;
     m_AnimationCache.speed = speed;
     m_AnimationCache.progress = progress;
@@ -6063,76 +6063,77 @@ void CClientPed::UpdateAnimationProgressAndSpeed()
     if (!animAssoc)
         return;
 
+    // Default to current progress to preserve state if paused or skipped
     float progress = animAssoc->GetCurrentProgress();
 
-    if (m_AnimationCache.speed > 0.0f)
+    // Process explicit cached progress independently of playback speed
+    if (!std::isnan(m_AnimationCache.progress))
     {
-        if (std::isnan(m_AnimationCache.progress))
+        progress = m_AnimationCache.progress;
+        m_AnimationCache.progress = std::numeric_limits<float>::quiet_NaN();
+    }
+    else if (m_AnimationCache.speed > 0.0f)
+    {
+        // Time-derived progress calculation requires a positive speed
+        float animLength = animAssoc->GetLength();
+        float elapsedTime = static_cast<float>(g_pClientGame->GetSyncedTime() - m_AnimationCache.startTime) / 1000.0f;
+        float speed = m_AnimationCache.speed;
+
+        float customTime = static_cast<float>(m_AnimationCache.iTime) / 1000.0f;
+        bool  isLoop = m_AnimationCache.bLoop;
+        bool  freeze = m_AnimationCache.bFreezeLastFrame;
+
+        float effectiveDuration = animLength;
+
+        // Determine the effective duration of the animation based on rules:
+        // 1. !isLoop && freeze -> plays full length
+        // 2. !isLoop && !freeze -> plays for customTime (if < 0, full length; if == 0, 0)
+        // 3. isLoop && !freeze -> plays for customTime if > 0, otherwise infinite if < 0
+        // 4. isLoop && freeze -> acts like infinite loop without freezing last frame
+        if (!isLoop && !freeze)
         {
-            float animLength = animAssoc->GetLength();
-            float elapsedTime = static_cast<float>(g_pClientGame->GetSyncedTime() - m_AnimationCache.startTime) / 1000.0f;
-            float speed = m_AnimationCache.speed != 0 ? m_AnimationCache.speed : 1.0f;
+            if (customTime == 0.0f)
+                effectiveDuration = 0.0f;
+            else if (customTime >= 0.0f)
+                effectiveDuration = std::min(customTime, animLength);
+        }
+        else if (isLoop && !freeze)
+        {
+            if (customTime >= 0.0f)
+                effectiveDuration = std::min(customTime, animLength);
+        }
 
-            float customTime = static_cast<float>(m_AnimationCache.iTime) / 1000.0f;
-            bool  isLoop = m_AnimationCache.bLoop;
-            bool  freeze = m_AnimationCache.bFreezeLastFrame;
-
-            // Determine the effective duration of the animation based on rules:
-            // 1. !isLoop && freeze -> plays full length
-            // 2. !isLoop && !freeze -> plays for customTime (if < 0, full length; if == 0, 0)
-            // 3. isLoop && !freeze -> plays for customTime if > 0, otherwise infinite if < 0
-            // 4. isLoop && freeze -> acts like infinite loop without freezing last frame
-            float effectiveDuration = animLength;
-
-            if (!isLoop && !freeze)
-            {
-                if (customTime == 0.0f)
-                    effectiveDuration = 0.0f;
-                else if (customTime >= 0.0f)
-                    effectiveDuration = customTime;
-            }
-            else if (isLoop && !freeze)
-            {
-                if (customTime >= 0.0f)
-                    effectiveDuration = customTime;
-            }
-
-            if (effectiveDuration <= 0.0f)
-                progress = 0.0f;
-            else if (!isLoop)
-            {
-                if (freeze)
-                    // Plays full duration and freezes at the final frame
-                    progress = std::min(1.0f, (elapsedTime * speed) / animLength);
-                else
-                    // Plays for the specified effectiveDuration
-                    progress = std::min(1.0f, (elapsedTime * speed) / effectiveDuration);
-            }
-            else  // isLoop == true
-            {
-                if (freeze)
-                    // Acts as an infinite loop without freezing last frame
-                    progress = std::fmod(elapsedTime * speed, animLength) / animLength;
-                else
-                {
-                    if (customTime < 0.0f)
-                        // Infinite loop
-                        progress = std::fmod(elapsedTime * speed, animLength) / animLength;
-                    else
-                    {
-                        // Plays for a specific customTime (may cut off mid-cycle)
-                        if (elapsedTime >= effectiveDuration / speed)
-                            progress = 1.0f;
-                        else
-                            progress = std::fmod(elapsedTime * speed, animLength) / animLength;
-                    }
-                }
-            }
+        if (effectiveDuration <= 0.0f)
+        {
+            progress = 0.0f;
+        }
+        else if (!isLoop)
+        {
+            if (freeze)
+                progress = std::min(1.0f, (elapsedTime * speed) / animLength);
+            else
+                progress = std::min(1.0f, (elapsedTime * speed) / effectiveDuration);
         }
         else
         {
-            progress = m_AnimationCache.progress;
-            m_AnimationCache.progress = std::numeric_limits<float>::quiet_NaN();
+            if (freeze)
+            {
+                progress = std::fmod(elapsedTime * speed, animLength) / animLength;
+            }
+            else
+            {
+                if (customTime < 0.0f)
+                {
+                    progress = std::fmod(elapsedTime * speed, animLength) / animLength;
+                }
+                else
+                {
+                    if (elapsedTime >= effectiveDuration / speed)
+                        progress = 1.0f;
+                    else
+                        progress = std::fmod(elapsedTime * speed, animLength) / animLength;
+                }
+            }
         }
     }
 

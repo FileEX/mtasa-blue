@@ -279,6 +279,7 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
 
                         pPed->m_AnimationCache.startTime = startTime;
                         pPed->m_AnimationCache.speed = 1.0f;
+                        pPed->m_AnimationCache.updateInNextFrame = true;
 
                         pPed->SetHasSyncedAnim(true);
                     }
@@ -309,12 +310,19 @@ void CPedRPCs::SetPedAnimationProgress(CClientEntity* pSource, NetBitStreamInter
                 if (bitStream.Read(fProgress))
                 {
                     auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(pPed->GetClump(), animName.c_str());
+                    bool match = animName == pPed->m_AnimationCache.strName;
+
+                    std::int64_t time{};
+                    if (bitStream.ReadBit() && bitStream.ReadInt64(time))
+                        pPed->m_AnimationCache.startTime = time;
+
                     if (pAnimAssociation)
                         pAnimAssociation->SetCurrentProgress(fProgress);
-                    else
+                    else if (match)
                         pPed->m_AnimationCache.updateInNextFrame = true;
 
-                    pPed->m_AnimationCache.progress = fProgress;
+                    if (match)
+                        pPed->m_AnimationCache.progress = fProgress;
                 }
             }
             else
@@ -338,10 +346,15 @@ void CPedRPCs::SetPedAnimationSpeed(CClientEntity* pSource, NetBitStreamInterfac
             if (bitStream.Read(fSpeed))
             {
                 auto pAnimAssociation = g_pGame->GetAnimManager()->RpAnimBlendClumpGetAssociation(pPed->GetClump(), animName.c_str());
-                pPed->m_AnimationCache.speed = fSpeed;
+                bool match = animName == pPed->m_AnimationCache.strName;
+
+                if (match)
+                    pPed->m_AnimationCache.speed = fSpeed;
 
                 if (pAnimAssociation)
                     pAnimAssociation->SetCurrentSpeed(fSpeed);
+                else if (match)
+                    pPed->m_AnimationCache.updateInNextFrame = true;
             }
         }
     }
