@@ -11,9 +11,11 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <string_view>
+#include <algorithm>
+#include <cctype>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 
 inline const std::unordered_map<std::string_view, float> g_animationDurations = {
     {"thrw_barl_thrw", 2.0f},

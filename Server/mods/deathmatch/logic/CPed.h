@@ -116,6 +116,7 @@ struct SPlayerAnimData
     bool         taskToBeRestoredOnAnimEnd{false};
     std::int64_t startTime{0};
     float        speed{1.0f};
+    float        progress{-1.0f};
 
     bool IsAnimating() const noexcept { return !blockName.empty() && !animName.empty(); }
 };

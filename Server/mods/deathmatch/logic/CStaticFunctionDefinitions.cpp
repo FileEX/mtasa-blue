@@ -4639,10 +4639,16 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CElement* pElement, const SStri
                 if (pPed->IsChoking())
                     pPed->SetChoking(false);
 
+                bool isGTAAnim = GetAnimationLength(animName) != -1.0f;
+
                 // Store anim data
                 std::int64_t startTime = GetLocalTick();
-                pPed->SetAnimationData(SPlayerAnimData{blockName, animName, iTime, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, iBlend,
-                                                       bTaskToBeRestoredOnAnimEnd, startTime});
+
+                if (isGTAAnim)
+                    pPed->SetAnimationData(SPlayerAnimData{blockName, animName, iTime, bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, iBlend,
+                                                           bTaskToBeRestoredOnAnimEnd, startTime});
+                else
+                    pPed->SetAnimationData({});
 
                 BitStream.pBitStream->WriteString<unsigned char>(blockName);
                 BitStream.pBitStream->WriteString<unsigned char>(animName);
@@ -4653,7 +4659,10 @@ bool CStaticFunctionDefinitions::SetPedAnimation(CElement* pElement, const SStri
                 BitStream.pBitStream->WriteBit(bFreezeLastFrame);
                 BitStream.pBitStream->Write(iBlend);
                 BitStream.pBitStream->WriteBit(bTaskToBeRestoredOnAnimEnd);
-                BitStream.pBitStream->WriteInt64(startTime);
+                BitStream.pBitStream->WriteBit(isGTAAnim);
+
+                if (isGTAAnim)
+                    BitStream.pBitStream->WriteInt64(startTime);
             }
             else
             {
@@ -4694,9 +4703,11 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CElement* pElement, con
 
                 if (match)
                 {
-                    float length = GetAnimationLength(animName);
-                    if (length != -1.0f && data.speed > 0.0f)  // custom anims sync is unsupported now
+                    data.progress = fProgress;
+
+                    if (data.speed > 0.0f)
                     {
+                        float length = GetAnimationLength(animName);
                         float progressDurationMs = length * 1000.0f;
 
                         if (!data.loop && !data.freezeLastFrame)
@@ -4704,7 +4715,7 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CElement* pElement, con
                             if (data.time == 0)
                                 progressDurationMs = 0.0f;
                             else if (data.time > 0)
-                                progressDurationMs = std::min(static_cast<float>(data.time), length * 1000.0f);
+                                progressDurationMs = std::min(static_cast<float>(data.time), progressDurationMs);
                         }
 
                         if (progressDurationMs > 0.0f)
@@ -4712,7 +4723,7 @@ bool CStaticFunctionDefinitions::SetPedAnimationProgress(CElement* pElement, con
                         else
                             data.startTime = GetLocalTick();
 
-                        pPed->SetAnimationData(data);
+                        data.progress = -1.0f;  // Reset progress to indicate that the animation is now running
                     }
 
                     BitStream.pBitStream->WriteInt64(data.startTime);

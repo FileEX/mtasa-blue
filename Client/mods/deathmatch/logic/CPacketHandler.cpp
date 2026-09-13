@@ -1025,6 +1025,7 @@ void CPacketHandler::Packet_PlayerList(NetBitStreamInterface& bitStream)
                 bool         looped, updatePosition, interruptable, freezeLastFrame, taskRestore;
                 float        speed;
                 std::int64_t startTime;
+                float        progress;
 
                 // Read data
                 bitStream.ReadString(blockName);
@@ -1039,12 +1040,21 @@ void CPacketHandler::Packet_PlayerList(NetBitStreamInterface& bitStream)
                 bitStream.ReadInt64(startTime);
                 bitStream.Read(speed);
 
+                // speed = 0
+                bool animationIsStopped = bitStream.ReadBit();
+
                 // Run anim
                 CStaticFunctionDefinitions::SetPedAnimation(*pPlayer, blockName, animName.c_str(), time, blendTime, looped, updatePosition, interruptable,
                                                             freezeLastFrame);
                 pPlayer->m_AnimationCache.startTime = startTime;
                 pPlayer->m_AnimationCache.speed = speed;
                 pPlayer->m_AnimationCache.updateInNextFrame = true;
+
+                if (animationIsStopped)
+                {
+                    bitStream.Read(progress);
+                    pPlayer->m_AnimationCache.progress = progress;
+                }
 
                 pPlayer->SetHasSyncedAnim(true);
             }
@@ -4004,6 +4014,7 @@ retry:
                         bool         looped, updatePosition, interruptable, freezeLastFrame, taskRestore;
                         float        speed;
                         std::int64_t startTime;
+                        float        progress;
 
                         // Read data
                         bitStream.ReadString(blockName);
@@ -4018,12 +4029,21 @@ retry:
                         bitStream.ReadInt64(startTime);
                         bitStream.Read(speed);
 
+                        // speed = 0
+                        bool animationIsStopped = bitStream.ReadBit();
+
                         // Run anim
                         CStaticFunctionDefinitions::SetPedAnimation(*pPed, blockName, animName.c_str(), time, blendTime, looped, updatePosition, interruptable,
                                                                     freezeLastFrame);
                         pPed->m_AnimationCache.startTime = startTime;
                         pPed->m_AnimationCache.speed = speed;
                         pPed->m_AnimationCache.updateInNextFrame = true;
+
+                        if (animationIsStopped)
+                        {
+                            bitStream.Read(progress);
+                            pPed->m_AnimationCache.progress = progress;
+                        }
 
                         pPed->SetHasSyncedAnim(true);
                     }

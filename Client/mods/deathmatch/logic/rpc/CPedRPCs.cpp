@@ -256,14 +256,18 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
                 int          iTime;
                 int          iBlend = 250;
                 bool         bLoop, bUpdatePosition, bInterruptible, bFreezeLastFrame, bTaskToBeRestoredOnAnimEnd;
-                std::int64_t startTime;
+                bool         isGTAAnim;
+                std::int64_t startTime{};
 
                 if (bitStream.ReadString<unsigned char>(animName) && bitStream.Read(iTime) && bitStream.ReadBit(bLoop) && bitStream.ReadBit(bUpdatePosition) &&
                     bitStream.ReadBit(bInterruptible) && bitStream.ReadBit(bFreezeLastFrame))
                 {
                     bitStream.Read(iBlend);
                     bitStream.ReadBit(bTaskToBeRestoredOnAnimEnd);
-                    bitStream.ReadInt64(startTime);
+                    bitStream.ReadBit(isGTAAnim);
+
+                    if (isGTAAnim)
+                        bitStream.ReadInt64(startTime);
 
                     if (!pPed->IsDucked())
                     {
@@ -277,11 +281,12 @@ void CPedRPCs::SetPedAnimation(CClientEntity* pSource, NetBitStreamInterface& bi
                         pPed->SetTaskToBeRestoredOnAnimEnd(bTaskToBeRestoredOnAnimEnd);
                         pPed->SetTaskTypeToBeRestoredOnAnimEnd((eTaskType)TASK_SIMPLE_DUCK);
 
-                        pPed->m_AnimationCache.startTime = startTime;
+                        pPed->m_AnimationCache.startTime = isGTAAnim ? startTime : g_pClientGame->GetSyncedTime();
                         pPed->m_AnimationCache.speed = 1.0f;
                         pPed->m_AnimationCache.updateInNextFrame = true;
 
-                        pPed->SetHasSyncedAnim(true);
+                        if (isGTAAnim)
+                            pPed->SetHasSyncedAnim(true);
                     }
                 }
             }
