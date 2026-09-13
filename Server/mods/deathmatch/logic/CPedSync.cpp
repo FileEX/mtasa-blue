@@ -116,13 +116,14 @@ void CPedSync::UpdateAllSyncer()
                 else if (time > 0)
                     effectiveDurationMs = std::min(static_cast<float>(time), animLengthMs);
 
-                float speed = (animData.speed > 0.0f) ? animData.speed : 1.0f;
-                float realDurationMs = effectiveDurationMs / speed;
+                if (animData.speed > 0.0f)
+                {
+                    float realDurationMs = effectiveDurationMs / animData.speed;
 
-                std::int64_t elapsedTime = currentLocalTick - animData.startTime;
-                if (elapsedTime >= static_cast<std::int64_t>(realDurationMs))
-                    (*iter)->SetAnimationData({});
-            }
+                    std::int64_t elapsedTime = currentLocalTick - animData.startTime;
+                    if (elapsedTime >= static_cast<std::int64_t>(realDurationMs))
+                        (*iter)->SetAnimationData({});
+                }
         }
 
         // It is a ped, yet not a player
